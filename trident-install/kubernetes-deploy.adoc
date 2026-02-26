@@ -1,0 +1,223 @@
+---
+sidebar: sidebar 
+permalink: trident-get-started/kubernetes-deploy.html 
+keywords: deploy, Trident, methods, operator, tridentctl, helm, tanzu, vmware 
+summary: 'È possibile installare Trident utilizzando l"operatore Trident (manualmente o tramite Helm) oppure con  `tridentctl`. Questo argomento fornisce informazioni importanti per scegliere il processo di installazione più adatto alle proprie esigenze.' 
+---
+= Scopri l'installazione di Trident
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+Per garantire che Trident possa essere installato in un'ampia varietà di ambienti e organizzazioni, NetApp offre diverse opzioni di installazione. Puoi installare Trident utilizzando l'operatore Trident (manualmente o tramite Helm) o con  `tridentctl`. Questo argomento fornisce informazioni importanti per la scelta del processo di installazione più adatto a te.
+
+
+
+== Informazioni critiche su Trident 25.10
+
+*È necessario leggere le seguenti informazioni critiche su Trident.*
+
+.<strong>Informazioni critiche su Trident</strong>
+[%collapsible%open]
+====
+[]
+=====
+* Kubernetes 1.34 è ora supportato in Trident. Aggiorna Trident prima di aggiornare Kubernetes.
+* Trident impone rigorosamente l'uso della configurazione multipathing negli ambienti SAN, con un valore consigliato di  `find_multipaths: no` nel file multipath.conf.
++
+L'utilizzo di una configurazione non multipath o l'utilizzo di  `find_multipaths: yes` o  `find_multipaths: smart` nel file multipath.conf causerà errori di montaggio. Trident ha raccomandato l'utilizzo di  `find_multipaths: no` dalla release 21.07.
+
+
+
+=====
+====
+
+
+== Prima di iniziare
+
+Indipendentemente dal percorso di installazione, è necessario disporre di:
+
+* Privilegi completi per un cluster Kubernetes supportato che esegue una versione supportata di Kubernetes e con i requisiti delle funzionalità abilitati. Consultare link:requirements.html["requisiti"] per i dettagli.
+* Accesso a un sistema storage NetApp.
+* Capacità di montare volumi da tutti i nodi worker di Kubernetes.
+* Un host Linux con `kubectl` (o `oc`, se si utilizza OpenShift) installato e configurato per gestire il cluster che si desidera utilizzare.
+* La  `KUBECONFIG`variabile di ambiente impostata per puntare alla configurazione del cluster Kubernetes.
+* Se si utilizza Kubernetes con Docker Enterprise, https://docs.docker.com/ee/ucp/user-access/cli/["segui i loro passaggi per abilitare l'accesso CLI"^].
+* Il cluster deve supportare carichi di lavoro privilegiati.
+
+
+
+TIP: Se non hai familiarità con il link:../trident-get-started/intro.html["concetti di base"^], questo è il momento giusto per farlo.
+
+
+
+== Scegli il tuo metodo di installazione
+
+Seleziona il metodo di installazione più adatto alle tue esigenze. Dovresti anche esaminare le considerazioni per link:kubernetes-deploy.html#move-between-installation-methods["spostarsi tra i metodi"] prima di prendere una decisione.
+
+
+
+=== Utilizzo dell'operatore Trident
+
+Che si utilizzi la distribuzione manuale o Helm, l'operatore Trident è un ottimo modo per semplificare l'installazione e gestire dinamicamente le risorse Trident. Puoi anche link:../trident-get-started/kubernetes-customize-deploy.html["personalizza la distribuzione dell'operatore Trident"] utilizzando gli attributi nella  `TridentOrchestrator` custom resource (CR).
+
+I vantaggi dell'utilizzo dell'operatore Trident includono:
+
+.<strong>Creazione oggetto Trident</strong>
+[%collapsible]
+====
+L'operatore Trident crea automaticamente i seguenti oggetti per la tua versione di Kubernetes.
+
+* ServiceAccount per l'operatore
+* ClusterRole e ClusterRoleBinding al ServiceAccount
+* Dedicato PodSecurityPolicy (per Kubernetes 1.25 e versioni precedenti)
+* L'operatore stesso
+
+
+====
+.<strong>Responsabilità delle risorse</strong>
+[%collapsible]
+====
+L'operatore Trident con ambito cluster gestisce le risorse associate a un'installazione Trident a livello di cluster. Questo riduce gli errori che potrebbero verificarsi durante la gestione delle risorse con ambito cluster utilizzando un operatore con ambito namespace. Questo è essenziale per l'auto-riparazione e l'applicazione di patch.
+
+====
+.<strong>Capacità di self-healing</strong>
+[%collapsible]
+====
+L'operatore monitora l'installazione di Trident e adotta misure attive per risolvere eventuali problemi, ad esempio quando il deployment viene eliminato o modificato accidentalmente. Un `trident-operator-<generated-id>` pod viene creato che associa una `TridentOrchestrator` CR a un'installazione di Trident. Questo garantisce che ci sia una sola istanza di Trident nel cluster e ne controlla la configurazione, assicurando che l'installazione sia idempotente. Quando vengono apportate modifiche all'installazione (ad esempio, l'eliminazione del deployment o del node daemonset), l'operatore le identifica e le corregge individualmente.
+
+====
+.<strong>Aggiornamenti facili alle installazioni esistenti</strong>
+[%collapsible]
+====
+È possibile aggiornare facilmente una distribuzione esistente con l'operatore. È sufficiente modificare il  `TridentOrchestrator` CR per apportare aggiornamenti a un'installazione.
+
+Ad esempio, considera uno scenario in cui è necessario abilitare Trident per generare log di debug. Per farlo, applica una patch al tuo `TridentOrchestrator` per impostare `spec.debug` su `true`:
+
+[listing]
+----
+kubectl patch torc <trident-orchestrator-name> -n trident --type=merge -p '{"spec":{"debug":true}}'
+----
+Dopo `TridentOrchestrator` l'aggiornamento, l'operatore elabora gli aggiornamenti e applica le patch all'installazione esistente. Questo potrebbe innescare la creazione di nuovi pod per modificare l'installazione di conseguenza.
+
+====
+.<strong>Reinstallazione pulita</strong>
+[%collapsible]
+====
+L'operatore Trident con ambito cluster consente la rimozione pulita delle risorse con ambito cluster. Gli utenti possono disinstallare completamente Trident e reinstallarlo facilmente.
+
+====
+.<strong>Gestione automatica degli upgrade di Kubernetes</strong>
+[%collapsible]
+====
+Quando la versione Kubernetes del cluster viene aggiornata a una versione supportata, l'operatore aggiorna automaticamente un'installazione Trident esistente e la modifica per garantire che soddisfi i requisiti della versione Kubernetes.
+
+
+NOTE: Se il cluster viene aggiornato a una versione non supportata, l'operatore impedisce l'installazione di Trident. Se Trident è già stato installato con l'operatore, viene visualizzato un avviso per indicare che Trident è installato su una versione di Kubernetes non supportata.
+
+====
+
+
+=== Utilizzando `tridentctl`
+
+Se hai una distribuzione esistente che deve essere aggiornata o se desideri personalizzarla in modo significativo, dovresti prendere in considerazione . Questo è il metodo convenzionale per distribuire Trident.
+
+È possibile  generare i manifest per le risorse Trident. Questo include la deployment, il daemonset, l'account di servizio e il cluster role che Trident crea come parte della sua installazione.
+
+
+NOTE: A partire dalla versione 22.04, le chiavi AES non verranno più rigenerate ogni volta che si installa Trident. Con questa versione, Trident installerà un nuovo oggetto segreto che persiste tra le installazioni. Ciò significa che, `tridentctl` nella versione 22.04 è possibile disinstallare le versioni precedenti di Trident, ma le versioni precedenti non possono disinstallare le installazioni della 22.04. Selezionare il metodo di installazione appropriato.
+
+
+
+== Scegli la modalità di installazione
+
+Determina il processo di distribuzione in base alla _modalità di installazione_ (Standard, Offline o Remote) richiesta dalla tua organizzazione.
+
+[role="tabbed-block"]
+====
+.Installazione standard
+--
+Questo è il modo più semplice per installare Trident e funziona per la maggior parte degli ambienti che non impongono restrizioni di rete. La modalità di installazione standard utilizza i registri predefiniti per memorizzare le immagini Trident (`docker.io`) e CSI (`registry.k8s.io`) richieste.
+
+Quando si utilizza la modalità standard, il programma di installazione di Trident:
+
+* Recupera le immagini del container tramite Internet
+* Crea un deployment o un daemonset di nodi, che avvia i pod Trident su tutti i nodi idonei nel cluster Kubernetes
+
+
+--
+.Installazione offline
+--
+La modalità di installazione offline potrebbe essere necessaria in una posizione isolata o sicura. In questo scenario, è possibile creare un singolo registro privato con mirroring o due registri con mirroring per archiviare le immagini Trident e CSI richieste.
+
+
+NOTE: Indipendentemente dalla configurazione del registro, le immagini CSI devono risiedere in un unico registro.
+
+--
+.Installazione remota
+--
+Ecco una panoramica high-level del processo di installazione remota:
+
+* Distribuisci la versione appropriata di  `kubectl` sulla macchina remota da cui desideri distribuire Trident.
+* Copia i file di configurazione dal cluster Kubernetes e imposta la  `KUBECONFIG` variabile di ambiente sulla macchina remota.
+* Avvia un  `kubectl get nodes` comando per verificare che sia possibile connettersi al cluster Kubernetes richiesto.
+* Completare la distribuzione dalla macchina remota utilizzando i passaggi di installazione standard.
+
+
+--
+====
+
+
+== Seleziona il processo in base al tuo metodo e modalità
+
+Dopo aver preso le tue decisioni, seleziona il processo appropriato.
+
+[cols="2"]
+|===
+| Metodo | Modalità di installazione 
+
+
+| Trident operator (manualmente)  a| 
+link:kubernetes-deploy-operator.html["Installazione standard"]
+
+link:kubernetes-deploy-operator-mirror.html["Installazione offline"]
+
+
+
+| Operatore Trident (Helm)  a| 
+link:kubernetes-deploy-helm.html["Installazione standard"]
+
+link:kubernetes-deploy-helm-mirror.html["Installazione offline"]
+
+
+
+| `tridentctl`  a| 
+link:kubernetes-deploy-tridentctl.html["Installazione standard o offline"]
+
+|===
+
+
+== Spostarsi tra i metodi di installazione
+
+Puoi decidere di cambiare il metodo di installazione. Prima di farlo, considera quanto segue:
+
+* Utilizzare sempre lo stesso metodo per installare e disinstallare Trident. Se si è eseguito il deployment con  `tridentctl`, è necessario utilizzare la versione appropriata del  `tridentctl` binario per disinstallare Trident. Analogamente, se si esegue il deployment con l'operatore, è necessario modificare la  `TridentOrchestrator` CR e impostare  `spec.uninstall=true` per disinstallare Trident.
+* Se hai una distribuzione basata su operatore che vuoi rimuovere e usare invece  `tridentctl` per distribuire Trident, dovresti prima modificare  `TridentOrchestrator` e impostare  `spec.uninstall=true` per disinstallare Trident. Quindi elimina  `TridentOrchestrator` e la distribuzione dell'operatore. Puoi quindi installare utilizzando  `tridentctl`.
+* Se si dispone di una distribuzione manuale basata sull'operatore e si desidera utilizzare la distribuzione dell'operatore Trident basata su Helm, è necessario disinstallare manualmente prima l'operatore e quindi eseguire l'installazione di Helm. Ciò consente a Helm di distribuire l'operatore Trident con le etichette e le annotazioni richieste. Se non si esegue questa operazione, la distribuzione dell'operatore Trident basata su Helm non riuscirà a causa di un errore di convalida delle etichette e delle annotazioni.
+* Se si dispone di una distribuzione basata su  `tridentctl`, è possibile eseguire una distribuzione basata su Helm o su Operator senza disinstallare Trident.
+
+
+
+
+== Altre opzioni di configurazione note
+
+Quando si installa Trident sui prodotti VMWare Tanzu Portfolio:
+
+* Il `--kubelet-dir` flag dovrebbe essere impostato sulla posizione della directory kubelet. Per impostazione predefinita, questa è `/var/vcap/data/kubelet`.
++
+La specifica della posizione del kubelet utilizzando  `--kubelet-dir` è nota per funzionare con Trident Operator, Helm e  `tridentctl` deployment.
+
+

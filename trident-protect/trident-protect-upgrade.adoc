@@ -1,0 +1,72 @@
+---
+sidebar: sidebar 
+permalink: trident-protect/trident-protect-upgrade.html 
+keywords: trident, protect, netapp, upgrade, new, version 
+summary: 'Puoi aggiornare Trident Protect all"ultima versione per sfruttare le nuove funzionalità o correzioni di bug.' 
+---
+= Aggiorna Trident Protect
+:hardbreaks:
+:allow-uri-read: 
+:nofooter: 
+:icons: font
+:linkattrs: 
+:imagesdir: ../media/
+
+
+[role="lead"]
+Puoi aggiornare Trident Protect all'ultima versione per sfruttare le nuove funzionalità o correzioni di bug.
+
+[NOTE]
+====
+* Quando si esegue l'aggiornamento dalla versione 24.10, gli snapshot in esecuzione durante l'aggiornamento potrebbero non riuscire. Questo errore non impedisce la creazione di snapshot futuri, sia manuali che pianificati. Se uno snapshot non riesce durante l'aggiornamento, è possibile crearne uno nuovo manualmente per garantire che l'applicazione sia protetta.
++
+Per evitare potenziali errori, è possibile disabilitare tutte le pianificazioni degli Snapshot prima dell'aggiornamento e riabilitarle in seguito. Tuttavia, questo comporta la mancata acquisizione di eventuali Snapshot pianificati durante il periodo di aggiornamento.
+
+* Per le installazioni con registro privato, assicurati che il chart e le immagini Helm richiesti per la versione di destinazione siano disponibili nel tuo registro privato e verifica che i valori Helm personalizzati siano compatibili con la nuova versione del chart. Per ulteriori informazioni, consulta link:trident-protect-installation.html["Installa Trident Protect da un registro privato"].
+
+
+====
+Per aggiornare Trident Protect, eseguire i seguenti passaggi.
+
+.Passaggi
+. Aggiorna il repository Helm di Trident:
++
+[source, console]
+----
+helm repo update
+----
+. Aggiorna i CRD di Trident Protect:
++
+
+NOTE: Questo passaggio è necessario se si esegue l'aggiornamento da una versione precedente alla 25.06, poiché i CRD sono ora inclusi nel chart Helm di Trident Protect.
+
++
+.. Esegui questo comando per spostare la gestione dei CRD da  `trident-protect-crds` a  `trident-protect`:
++
+[source, console]
+----
+kubectl get crd | grep protect.trident.netapp.io | awk '{print $1}' | xargs -I {} kubectl patch crd {} --type merge -p '{"metadata":{"annotations":{"meta.helm.sh/release-name": "trident-protect"}}}'
+----
+.. Esegui questo comando per eliminare il segreto Helm per il  `trident-protect-crds` chart:
++
+
+NOTE: Non disinstallare il  `trident-protect-crds` chart tramite Helm, poiché ciò potrebbe rimuovere i tuoi CRD e qualsiasi dato correlato.
+
++
+[source, console]
+----
+kubectl delete secret -n trident-protect -l name=trident-protect-crds,owner=helm
+----
+
+
+. Aggiorna Trident Protect:
++
+[source, console]
+----
+helm upgrade trident-protect netapp-trident-protect/trident-protect --version 100.2510.0 --namespace trident-protect
+----
++
+
+NOTE: È possibile configurare il livello di registrazione durante l'aggiornamento aggiungendo  `--set logLevel=debug` al comando di aggiornamento. Il livello di registrazione predefinito è  `warn`. La registrazione di debug è consigliata per la risoluzione dei problemi, in quanto aiuta NetApp a diagnosticare i problemi senza richiedere modifiche al livello di registrazione o la riproduzione dei problemi.
+
+

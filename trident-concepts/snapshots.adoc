@@ -1,0 +1,28 @@
+---
+sidebar: sidebar 
+permalink: trident-concepts/snapshots.html 
+keywords: provisioning, Trident 
+summary: Scopri di più su come Trident gestisce la creazione di snapshot di volume per i suoi driver. 
+---
+= Istantanee del volume
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+Scopri di più su come Trident gestisce la creazione di snapshot di volume per i suoi driver.
+
+
+
+== Scopri la creazione di snapshot del volume
+
+* Per i  `ontap-nas`, `ontap-san`, e  `azure-netapp-files` driver, ogni Volume Persistente (PV) viene mappato a un FlexVol volume. Di conseguenza, gli snapshot del volume vengono creati come NetApp snapshot. La tecnologia snapshot NetApp offre maggiore stabilità, scalabilità, recuperabilità e prestazioni rispetto alle tecnologie snapshot concorrenti. Queste copie snapshot sono estremamente efficienti sia in termini di tempo necessario per crearle che di spazio di storage.
+* Per il  `ontap-nas-flexgroup` driver, ogni Persistent Volume (PV) è mappato a un FlexGroup. Di conseguenza, gli snapshot dei volumi vengono creati come snapshot NetApp FlexGroup. La tecnologia snapshot NetApp offre maggiore stabilità, scalabilità, recuperabilità e prestazioni rispetto alle tecnologie snapshot concorrenti. Queste copie snapshot sono estremamente efficienti sia in termini di tempo necessario per crearle che di spazio di storage.
+* Per il  `ontap-san-economy` driver, i PV sono mappati su LUN create su volumi FlexVol condivisi. Le VolumeSnapshots dei PV vengono ottenute eseguendo FlexClones della LUN associata. La tecnologia ONTAP FlexClone consente di creare copie anche dei dataset più grandi quasi istantaneamente. Le copie condividono blocchi di dati con i loro genitori, consumando solo lo spazio necessario per i metadati.
+* Per il `solidfire-san` driver, ogni PV mappa a una LUN creata sul software NetApp Element/NetApp HCI cluster. VolumeSnapshots sono rappresentati da snapshot Element della LUN sottostante. Questi snapshot sono copie point-in-time e occupano solo una piccola quantità di risorse di sistema e spazio.
+* Quando si lavora con i driver `ontap-nas` e `ontap-san`, le snapshot ONTAP sono copie point-in-time del FlexVol e consumano spazio sul FlexVol stesso. Questo può far sì che la quantità di spazio scrivibile nel volume si riduca con il tempo, man mano che vengono create o pianificate le snapshot. Un modo semplice per risolvere questo problema è aumentare il volume ridimensionandolo tramite Kubernetes. Un'altra opzione è eliminare le snapshot che non sono più necessarie. Quando una VolumeSnapshot creata tramite Kubernetes viene eliminata, Trident eliminerà la snapshot ONTAP associata. Le snapshot ONTAP che non sono state create tramite Kubernetes possono anche essere eliminate.
+
+
+Con Trident, puoi utilizzare VolumeSnapshots per creare nuovi PV da esse. La creazione di PV da queste snapshot viene eseguita utilizzando la tecnologia FlexClone per i backend ONTAP supportati. Quando si crea un PV da una snapshot, il volume di supporto è un FlexClone del volume d'origine della snapshot. Il driver `solidfire-san` utilizza i cloni di volume del software Element per creare PV dalle snapshot. Qui crea un clone dalla snapshot Element.

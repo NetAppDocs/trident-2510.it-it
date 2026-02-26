@@ -1,0 +1,118 @@
+---
+sidebar: sidebar 
+permalink: trident-use/create-stor-class.html 
+keywords: storage class, manage storage class, storage classes, kubernetes storage classes 
+summary: È possibile progettare un file Kubernetes StorageClass e creare il StorageClass per istruire Trident su come effettuare il provisioning dei volumi. 
+---
+= Creare una storage class
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+Configura un oggetto Kubernetes StorageClass e crea la storage class per istruire Trident su come effettuare il provisioning dei volumi.
+
+
+
+== Configura un oggetto Kubernetes StorageClass
+
+Il  https://kubernetes.io/docs/concepts/storage/storage-classes/["Oggetto Kubernetes StorageClass"^] identifica Trident come il provisioner utilizzato per quella classe e istruisce Trident su come eseguire il provisioning di un volume. Ad esempio:
+
+[source, yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ontap-gold
+provisioner: csi.trident.netapp.io
+mountOptions:
+  - nfsvers=3
+  - nolock
+parameters:
+  backendType: "ontap-nas"
+  media: "ssd"
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+----
+Fate riferimento a link:../trident-reference/objects.html["Oggetti Kubernetes e Trident"] per i dettagli su come le classi di storage interagiscono con `PersistentVolumeClaim` e sui parametri per controllare come Trident effettua il provisioning dei volumi.
+
+
+
+== Creare una storage class
+
+Dopo aver creato l'oggetto StorageClass, puoi creare la storage class. <<Esempi di storage class>> fornisce alcuni esempi di base che puoi utilizzare o modificare.
+
+.Passaggi
+. Si tratta di un oggetto Kubernetes, quindi usa `kubectl` per crearlo in Kubernetes.
++
+[listing]
+----
+kubectl create -f sample-input/storage-class-basic-csi.yaml
+----
+. Ora dovresti vedere una classe di storage *basic-csi* sia in Kubernetes che in Trident, e Trident dovrebbe aver rilevato i pool sul backend.
++
+[source, console]
+----
+kubectl get sc basic-csi
+----
+
+
+[listing]
+----
+NAME         PROVISIONER             AGE
+basic-csi    csi.trident.netapp.io   15h
+----
+[source, console]
+----
+./tridentctl -n trident get storageclass basic-csi -o json
+----
+[source, json]
+----
+{
+  "items": [
+    {
+      "Config": {
+        "version": "1",
+        "name": "basic-csi",
+        "attributes": {
+          "backendType": "ontap-nas"
+        },
+        "storagePools": null,
+        "additionalStoragePools": null
+      },
+      "storage": {
+        "ontapnas_10.0.0.1": [
+          "aggr1",
+          "aggr2",
+          "aggr3",
+          "aggr4"
+        ]
+      }
+    }
+  ]
+}
+----
+
+
+=== Esempi di storage class
+
+Trident fornisce https://github.com/NetApp/trident/tree/master/trident-installer/sample-input/storage-class-samples["definizioni di storage class semplici per specifici backend"^].
+
+In alternativa, puoi modificare `sample-input/storage-class-csi.yaml.templ` il file fornito con il programma di installazione e sostituire `__BACKEND_TYPE__` con il nome del driver di storage.
+
+[listing]
+----
+./tridentctl -n trident get backend
++-------------+----------------+--------------------------------------+--------+---------+
+|    NAME     | STORAGE DRIVER |                 UUID                 | STATE  | VOLUMES |
++-------------+----------------+--------------------------------------+--------+---------+
+| nas-backend | ontap-nas      | 98e19b74-aec7-4a3d-8dcf-128e5033b214 | online |       0 |
++-------------+----------------+--------------------------------------+--------+---------+
+
+cp sample-input/storage-class-csi.yaml.templ sample-input/storage-class-basic-csi.yaml
+
+# Modify __BACKEND_TYPE__ with the storage driver field above (e.g., ontap-nas)
+vi sample-input/storage-class-basic-csi.yaml
+----

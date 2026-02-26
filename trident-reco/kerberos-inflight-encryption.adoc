@@ -1,0 +1,396 @@
+---
+sidebar: sidebar 
+permalink: trident-reco/kerberos-inflight-encryption.html 
+keywords: Trident, backend, storage, encryption, kerberos 
+summary: È possibile configurare la crittografia per proteggere il traffico tra Trident e il backend dello storage. 
+---
+= Crittografia in volo Kerberos
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+Utilizzando la crittografia Kerberos in volo, puoi migliorare la sicurezza dell'accesso ai dati abilitando la crittografia per il traffico tra il tuo cluster gestito e il backend di storage.
+
+Trident supporta la crittografia Kerberos per ONTAP come storage backend:
+
+* *On-premise ONTAP* - Trident supporta la crittografia Kerberos su connessioni NFSv3 e NFSv4 da cluster Red Hat OpenShift e Kubernetes upstream a volumi ONTAP on-premise.
+
+
+È possibile creare, eliminare, ridimensionare, creare snapshot, clonare, clonare in sola lettura e importare volumi che utilizzano NFS con crittografia.
+
+
+
+== Configura la crittografia Kerberos in volo con i volumi ONTAP on-premise
+
+È possibile abilitare la crittografia Kerberos sul traffico di storage tra il cluster gestito e un backend di storage ONTAP on-premise.
+
+
+NOTE: La crittografia Kerberos per il traffico NFS con backend di storage on-premise ONTAP è supportata solo utilizzando il `ontap-nas` storage driver.
+
+.Prima di iniziare
+* Assicurati di avere accesso all' `tridentctl` utility.
+* Assicurati di avere accesso come amministratore al backend di storage ONTAP.
+* Assicurati di conoscere il nome del volume o dei volumi che condividerai dal backend di storage ONTAP.
+* Assicurarsi di aver preparato la macchina virtuale di storage ONTAP per supportare la crittografia Kerberos per i volumi NFS. Consultare  https://docs.netapp.com/us-en/ontap/nfs-config/create-kerberos-config-task.html["Abilitare Kerberos su un dataLIF"^] per le istruzioni.
+* Assicurarsi che i volumi NFSv4 utilizzati con la crittografia Kerberos siano configurati correttamente. Fare riferimento alla sezione NetApp NFSv4 Domain Configuration (pagina 13) di https://www.netapp.com/media/16398-tr-3580.pdf["NetApp Miglioramenti NFSv4 e Guida alle Best Practice"^].
+
+
+
+
+=== Aggiungi o modifica le policy di esportazione ONTAP
+
+È necessario aggiungere regole alle policy di esportazione ONTAP esistenti o creare nuove policy di esportazione che supportino la crittografia Kerberos per il volume root della storage VM ONTAP, così come per qualsiasi volume ONTAP condiviso con il cluster Kubernetes upstream. Le regole delle policy di esportazione che aggiungi, o le nuove policy di esportazione che crei, devono supportare i seguenti protocolli di accesso e permessi di accesso:
+
+.Protocolli di accesso
+Configura la policy di esportazione con i protocolli di accesso NFS, NFSv3 e NFSv4.
+
+.Dettagli di accesso
+È possibile configurare una delle tre diverse versioni della crittografia Kerberos, a seconda delle esigenze per il volume:
+
+* *Kerberos 5* - (autenticazione e crittografia)
+* *Kerberos 5i* - (autenticazione e crittografia con protezione dell'identità)
+* *Kerberos 5p* - (autenticazione e crittografia con protezione dell'identità e della privacy)
+
+
+Configurare la regola della policy di esportazione ONTAP con le autorizzazioni di accesso appropriate. Ad esempio, se i cluster monteranno i volumi NFS con un misto di crittografia Kerberos 5i e Kerberos 5p, utilizzare le seguenti impostazioni di accesso:
+
+|===
+| Tipo | Accesso in sola lettura | Accesso in lettura/scrittura | Accesso come superutente 
+
+
+| UNIX | Abilitato | Abilitato | Abilitato 
+
+
+| Kerberos 5i | Abilitato | Abilitato | Abilitato 
+
+
+| Kerberos 5p | Abilitato | Abilitato | Abilitato 
+|===
+Consultare la seguente documentazione per informazioni su come creare le policy di esportazione ONTAP e le regole delle policy di esportazione:
+
+* https://docs.netapp.com/us-en/ontap/nfs-config/create-export-policy-task.html["Creare una policy di esportazione"^]
+* https://docs.netapp.com/us-en/ontap/nfs-config/add-rule-export-policy-task.html["Aggiungere una regola a una policy di esportazione"^]
+
+
+
+
+=== Creare un backend di storage
+
+È possibile creare una configurazione del backend di storage Trident che includa la funzionalità di crittografia Kerberos.
+
+.Informazioni su questa attività
+Quando si crea un file di configurazione del backend di archiviazione che configura la crittografia Kerberos, è possibile specificare una delle tre diverse versioni della crittografia Kerberos utilizzando il parametro  `spec.nfsMountOptions`:
+
+* `spec.nfsMountOptions: sec=krb5` (autenticazione e crittografia)
+* `spec.nfsMountOptions: sec=krb5i` (autenticazione e crittografia con protezione dell'identità)
+* `spec.nfsMountOptions: sec=krb5p` (autenticazione e crittografia con protezione dell'identità e della privacy)
+
+
+Specificare un solo livello Kerberos. Se si specifica più di un livello di crittografia Kerberos nell'elenco dei parametri, viene utilizzata solo la prima opzione.
+
+.Passaggi
+. Sul cluster gestito, creare un file di configurazione del backend di storage utilizzando il seguente esempio. Sostituire i valori tra parentesi <> con le informazioni del proprio ambiente:
++
+[source, yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-ontap-nas-secret
+type: Opaque
+stringData:
+  clientID: <CLIENT_ID>
+  clientSecret: <CLIENT_SECRET>
+---
+apiVersion: trident.netapp.io/v1
+kind: TridentBackendConfig
+metadata:
+  name: backend-ontap-nas
+spec:
+  version: 1
+  storageDriverName: "ontap-nas"
+  managementLIF: <STORAGE_VM_MGMT_LIF_IP_ADDRESS>
+  dataLIF: <PROTOCOL_LIF_FQDN_OR_IP_ADDRESS>
+  svm: <STORAGE_VM_NAME>
+  username: <STORAGE_VM_USERNAME_CREDENTIAL>
+  password: <STORAGE_VM_PASSWORD_CREDENTIAL>
+  nasType: nfs
+  nfsMountOptions: ["sec=krb5i"] #can be krb5, krb5i, or krb5p
+  qtreesPerFlexvol:
+  credentials:
+    name: backend-ontap-nas-secret
+----
+. Utilizzare il file di configurazione creato nel passo precedente per creare il backend:
++
+[source, console]
+----
+tridentctl create backend -f <backend-configuration-file>
+----
++
+Se la creazione del backend fallisce, c'è qualcosa di sbagliato nella configurazione del backend. Puoi visualizzare i log per determinare la causa eseguendo il seguente comando:
+
++
+[source, console]
+----
+tridentctl logs
+----
++
+Dopo aver identificato e corretto il problema con il file di configurazione, è possibile eseguire nuovamente il comando create.
+
+
+
+
+
+=== Creare una storage class
+
+È possibile creare una storage class per il provisioning dei volumi con crittografia Kerberos.
+
+.Informazioni su questa attività
+Quando si crea un oggetto classe di archiviazione, è possibile specificare una delle tre diverse versioni della crittografia Kerberos utilizzando il parametro  `mountOptions`:
+
+* `mountOptions: sec=krb5` (autenticazione e crittografia)
+* `mountOptions: sec=krb5i` (autenticazione e crittografia con protezione dell'identità)
+* `mountOptions: sec=krb5p` (autenticazione e crittografia con protezione dell'identità e della privacy)
+
+
+Specificare un solo livello Kerberos. Se si specifica più di un livello di crittografia Kerberos nell'elenco dei parametri, viene utilizzata solo la prima opzione. Se il livello di crittografia specificato nella configurazione del backend di storage è diverso dal livello specificato nell'oggetto storage class, l'oggetto storage class ha la precedenza.
+
+.Passaggi
+. Crea un oggetto StorageClass Kubernetes, utilizzando il seguente esempio:
++
+[source, yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ontap-nas-sc
+provisioner: csi.trident.netapp.io
+mountOptions:
+  - sec=krb5i #can be krb5, krb5i, or krb5p
+parameters:
+  backendType: ontap-nas
+  storagePools: ontapnas_pool
+  trident.netapp.io/nasType: nfs
+allowVolumeExpansion: true
+
+----
+. Crea la classe di archiviazione:
++
+[source, console]
+----
+kubectl create -f sample-input/storage-class-ontap-nas-sc.yaml
+----
+. Assicurati che la storage class sia stata creata:
++
+[source, console]
+----
+kubectl get sc ontap-nas-sc
+----
++
+Dovresti vedere un output simile al seguente:
+
++
+[listing]
+----
+NAME         PROVISIONER             AGE
+ontap-nas-sc    csi.trident.netapp.io   15h
+----
+
+
+
+
+=== Provisioning dei volumi
+
+Dopo aver creato un backend di archiviazione e una classe di archiviazione, è possibile eseguire il provisioning di un volume. Per istruzioni, consultare https://docs.netapp.com/us-en/trident/trident-use/vol-provision.html["Effettua il provisioning di un volume"^].
+
+
+
+== Configura la crittografia Kerberos in volo con i volumi Azure NetApp Files
+
+È possibile abilitare la crittografia Kerberos sul traffico di archiviazione tra il cluster gestito e un singolo backend di archiviazione Azure NetApp Files o un pool virtuale di backend di archiviazione Azure NetApp Files.
+
+.Prima di iniziare
+* Assicurarsi di aver abilitato Trident sul cluster gestito Red Hat OpenShift.
+* Assicurati di avere accesso all' `tridentctl` utility.
+* Assicurati di aver preparato il backend di archiviazione Azure NetApp Files per la crittografia Kerberos, prendendo nota dei requisiti e seguendo le istruzioni in https://learn.microsoft.com/en-us/azure/azure-netapp-files/configure-kerberos-encryption["Documentazione di Azure NetApp Files"^].
+* Assicurarsi che i volumi NFSv4 utilizzati con la crittografia Kerberos siano configurati correttamente. Fare riferimento alla sezione NetApp NFSv4 Domain Configuration (pagina 13) di https://www.netapp.com/media/16398-tr-3580.pdf["NetApp Miglioramenti NFSv4 e Guida alle Best Practice"^].
+
+
+
+
+=== Creare un backend di storage
+
+È possibile creare una configurazione del backend di storage di Azure NetApp Files che include la funzionalità di crittografia Kerberos.
+
+.Informazioni su questa attività
+Quando si crea un file di configurazione del backend di archiviazione che configura la crittografia Kerberos, è possibile definirlo in modo che venga applicato a uno dei due livelli possibili:
+
+* Il *livello di backend dello storage* utilizzando il  `spec.kerberos` campo
+* Il *livello del pool virtuale* utilizzando il campo `spec.storage.kerberos`
+
+
+Quando si definisce la configurazione a livello di pool virtuale, il pool viene selezionato utilizzando l'etichetta nella storage class.
+
+A entrambi i livelli, puoi specificare una delle tre diverse versioni della crittografia Kerberos:
+
+* `kerberos: sec=krb5` (autenticazione e crittografia)
+* `kerberos: sec=krb5i` (autenticazione e crittografia con protezione dell'identità)
+* `kerberos: sec=krb5p` (autenticazione e crittografia con protezione dell'identità e della privacy)
+
+
+.Passaggi
+. Sul cluster gestito, creare un file di configurazione del backend di archiviazione utilizzando uno dei seguenti esempi, a seconda di dove è necessario definire il backend di archiviazione (livello di backend di archiviazione o livello di pool virtuale). Sostituire i valori tra parentesi <> con le informazioni del proprio ambiente:
++
+[role="tabbed-block"]
+====
+.Esempio a livello di backend di storage
+--
+[source, yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-tbc-secret
+type: Opaque
+stringData:
+  clientID: <CLIENT_ID>
+  clientSecret: <CLIENT_SECRET>
+
+---
+apiVersion: trident.netapp.io/v1
+kind: TridentBackendConfig
+metadata:
+  name: backend-tbc
+spec:
+  version: 1
+  storageDriverName: azure-netapp-files
+  subscriptionID: <SUBSCRIPTION_ID>
+  tenantID: <TENANT_ID>
+  location: <AZURE_REGION_LOCATION>
+  serviceLevel: Standard
+  networkFeatures: Standard
+  capacityPools: <CAPACITY_POOL>
+  resourceGroups: <RESOURCE_GROUP>
+  netappAccounts: <NETAPP_ACCOUNT>
+  virtualNetwork: <VIRTUAL_NETWORK>
+  subnet: <SUBNET>
+  nasType: nfs
+  kerberos: sec=krb5i #can be krb5, krb5i, or krb5p
+  credentials:
+    name: backend-tbc-secret
+----
+--
+.Esempio di livello di pool virtuale
+--
+[source, yaml]
+----
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-tbc-secret
+type: Opaque
+stringData:
+  clientID: <CLIENT_ID>
+  clientSecret: <CLIENT_SECRET>
+
+---
+apiVersion: trident.netapp.io/v1
+kind: TridentBackendConfig
+metadata:
+  name: backend-tbc
+spec:
+  version: 1
+  storageDriverName: azure-netapp-files
+  subscriptionID: <SUBSCRIPTION_ID>
+  tenantID: <TENANT_ID>
+  location: <AZURE_REGION_LOCATION>
+  serviceLevel: Standard
+  networkFeatures: Standard
+  capacityPools: <CAPACITY_POOL>
+  resourceGroups: <RESOURCE_GROUP>
+  netappAccounts: <NETAPP_ACCOUNT>
+  virtualNetwork: <VIRTUAL_NETWORK>
+  subnet: <SUBNET>
+  nasType: nfs
+  storage:
+    - labels:
+        type: encryption
+      kerberos: sec=krb5i #can be krb5, krb5i, or krb5p
+  credentials:
+    name: backend-tbc-secret
+
+----
+--
+====
+. Utilizzare il file di configurazione creato nel passo precedente per creare il backend:
++
+[source, console]
+----
+tridentctl create backend -f <backend-configuration-file>
+----
++
+Se la creazione del backend fallisce, c'è qualcosa di sbagliato nella configurazione del backend. Puoi visualizzare i log per determinare la causa eseguendo il seguente comando:
+
++
+[source, console]
+----
+tridentctl logs
+----
++
+Dopo aver identificato e corretto il problema con il file di configurazione, è possibile eseguire nuovamente il comando create.
+
+
+
+
+
+=== Creare una storage class
+
+È possibile creare una storage class per il provisioning dei volumi con crittografia Kerberos.
+
+.Passaggi
+. Crea un oggetto StorageClass Kubernetes, utilizzando il seguente esempio:
++
+[source, yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: sc-nfs
+provisioner: csi.trident.netapp.io
+parameters:
+  backendType: azure-netapp-files
+  trident.netapp.io/nasType: nfs
+  selector: type=encryption
+----
+. Crea la classe di archiviazione:
++
+[source, console]
+----
+kubectl create -f sample-input/storage-class-sc-nfs.yaml
+----
+. Assicurati che la storage class sia stata creata:
++
+[source, console]
+----
+kubectl get sc -sc-nfs
+----
++
+Dovresti vedere un output simile al seguente:
+
++
+[listing]
+----
+NAME         PROVISIONER             AGE
+sc-nfs       csi.trident.netapp.io   15h
+----
+
+
+
+
+=== Provisioning dei volumi
+
+Dopo aver creato un backend di archiviazione e una classe di archiviazione, è possibile eseguire il provisioning di un volume. Per istruzioni, consultare https://docs.netapp.com/us-en/trident/trident-use/vol-provision.html["Effettua il provisioning di un volume"^].

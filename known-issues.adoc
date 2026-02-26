@@ -1,0 +1,23 @@
+---
+sidebar: sidebar 
+permalink: known-issues.html 
+keywords: 'what"s new, new features, enhancements, known issues, resolved issues, troubleshooting' 
+summary: Ecco i problemi noti con questa release. 
+---
+= Problemi noti
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ./media/
+
+
+[role="lead"]
+I problemi noti identificano i problemi che potrebbero impedirti di utilizzare questa versione del prodotto con successo.
+
+I seguenti problemi noti interessano la release corrente:
+
+
+
+== Il ripristino dei backup Restic di file di grandi dimensioni può non riuscire
+
+Quando si ripristinano file da 30GB o più da un backup Amazon S3 effettuato con Restic, l'operazione di ripristino può non riuscire. Come soluzione alternativa, eseguire il backup dei dati utilizzando Kopia come data mover (Kopia è il data mover predefinito per i backup). Consultare  https://docs.netapp.com/us-en/trident/trident-protect/trident-protect-protect-apps.html["Proteggi le applicazioni utilizzando Trident Protect"^] per le istruzioni.

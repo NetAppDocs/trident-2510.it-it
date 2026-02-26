@@ -1,0 +1,133 @@
+---
+sidebar: sidebar 
+permalink: trident-docker/volumes-docker.html 
+keywords: create volumes, Trident, trident for docker, docker, docker volume 
+summary: 'Per creare volumi, utilizzare i comandi standard `docker volume` con il nome del driver Trident specificato quando necessario.' 
+---
+= Gestire i volumi
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+È possibile creare, clonare e rimuovere facilmente i volumi utilizzando i comandi standard `docker volume` con il nome del driver Trident specificato quando necessario.
+
+
+
+== Crea un volume
+
+* Crea un volume con un driver utilizzando il nome predefinito:
++
+[source, console]
+----
+docker volume create -d netapp --name firstVolume
+----
+* Crea un volume con una specifica istanza di Trident:
++
+[source, console]
+----
+docker volume create -d ntap_bronze --name bronzeVolume
+----
++
+
+NOTE: Se non si specifica alcun link:volume-driver-options.html["opzioni"^], vengono utilizzati i valori predefiniti per il driver.
+
+* Sostituisci le dimensioni predefinite del volume. Vedi il seguente esempio per creare un volume da 20 GiB con un driver:
++
+[source, console]
+----
+docker volume create -d netapp --name my_vol --opt size=20G
+----
++
+
+TIP: Le dimensioni dei volumi sono espresse come stringhe contenenti un valore intero con unità opzionali (esempio: 10G, 20GB, 3TiB). Se non vengono specificate unità, il valore predefinito è G. Le unità di dimensione possono essere espresse come potenze di 2 (B, KiB, MiB, GiB, TiB) o potenze di 10 (B, KB, MB, GB, TB). Le unità stenografiche utilizzano potenze di 2 (G = GiB, T = TiB, …).
+
+
+
+
+
+== Rimuovi un volume
+
+* Rimuovi il volume come qualsiasi altro volume Docker:
++
+[source, console]
+----
+docker volume rm firstVolume
+----
++
+
+IMPORTANT: Quando si utilizza il `solidfire-san` driver, l'esempio precedente elimina e cancella il volume.
+
+
+
+Eseguire i passaggi seguenti per aggiornare Trident for Docker.
+
+
+
+== Clonare un volume
+
+Quando si utilizzano i driver di storage `ontap-nas`, `ontap-san` e `solidfire-san`, Trident può clonare i volumi. Quando si utilizzano i driver `ontap-nas-flexgroup` o `ontap-nas-economy`, la clonazione non è supportata. La creazione di un nuovo volume da un volume esistente comporta la creazione di una nuova snapshot.
+
+* Ispeziona il volume per enumerare le istantanee:
++
+[source, console]
+----
+docker volume inspect <volume_name>
+----
+* Crea un nuovo volume da un volume esistente. Questo comporterà la creazione di una nuova istantanea:
++
+[source, console]
+----
+docker volume create -d <driver_name> --name <new_name> -o from=<source_docker_volume>
+----
+* Crea un nuovo volume da un'istantanea esistente su un volume. Questo non creerà una nuova istantanea:
++
+[source, console]
+----
+docker volume create -d <driver_name> --name <new_name> -o from=<source_docker_volume> -o fromSnapshot=<source_snap_name>
+----
+
+
+
+
+=== Esempio
+
+[source, console]
+----
+docker volume inspect firstVolume
+
+[
+  {
+    "Driver": "ontap-nas",
+    "Labels": null,
+    "Mountpoint": "/var/lib/docker-volumes/ontap-nas/netappdvp_firstVolume",
+    "Name": "firstVolume",
+    "Options": {},
+    "Scope": "global",
+    "Status": {
+      "Snapshots": [
+        {
+          "Created": "2017-02-10T19:05:00Z",
+          "Name": "hourly.2017-02-10_1505"
+        }
+      ]
+    }
+  }
+]
+
+docker volume create -d ontap-nas --name clonedVolume -o from=firstVolume
+clonedVolume
+
+docker volume rm clonedVolume
+docker volume create -d ontap-nas --name volFromSnap -o from=firstVolume -o fromSnapshot=hourly.2017-02-10_1505
+volFromSnap
+
+docker volume rm volFromSnap
+----
+
+
+== Accedere ai volumi creati esternamente
+
+È possibile accedere ai dispositivi a blocchi creati esternamente (o ai loro cloni) dai container usando Trident *solo* se non hanno partizioni e se il loro filesystem è supportato da Trident (ad esempio: un `ext4`-formattato `/dev/sdc1` non sarà accessibile tramite Trident).

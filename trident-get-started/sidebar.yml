@@ -1,0 +1,24 @@
+---
+section: trident-get-started
+title: Inizia
+entries:
+- title: Informazioni su Trident
+  entries:
+  - title: Panoramica di Trident
+    url: "/trident-get-started/intro.html"
+  - title: Architettura di Trident
+    url: "/trident-get-started/architecture.html"
+  - title: Concetti
+    entries:
+    - title: Provisioning
+      url: "/trident-concepts/provisioning.html"
+    - title: Istantanee del volume
+      url: "/trident-concepts/snapshots.html"
+    - title: Pool virtuali
+      url: "/trident-concepts/virtual-storage-pool.html"
+    - title: Gruppi di accesso al volume
+      url: "/trident-concepts/vol-access-groups.html"
+- title: Avvio rapido
+  url: "/trident-get-started/quickstart.html"
+- title: Requisiti
+  url: "/trident-get-started/requirements.html"

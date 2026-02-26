@@ -1,0 +1,879 @@
+---
+sidebar: sidebar 
+permalink: trident-use/ontap-nas-examples.html 
+keywords: map backends, storage classes, trident backend, ontap-nas, ontap-nas-economy, ontap-nas-flexgroups, options, storageclasses, fsx, metrocluster 
+summary: Scopri come creare e utilizzare i driver NAS ONTAP con la tua installazione Trident. Questa sezione fornisce esempi di configurazione backend e dettagli su come mappare i backend su StorageClasses. 
+---
+= Opzioni ed esempi di configurazione NAS ONTAP
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+Impara a creare e utilizzare i driver NAS ONTAP con la tua installazione Trident. Questa sezione fornisce esempi di configurazione del backend e dettagli per il mapping dei backend su StorageClasses.
+
+A partire dalla versione 25.10, NetApp Trident supporta link:https://docs.netapp.com/us-en/ontap-afx/index.html["Sistemi storage NetApp AFX"^]. NetApp AFX storage systems differiscono dagli altri sistemi basati su ONTAP (ASA, AFF e FAS) nell'implementazione del loro livello di storage.
+
+
+NOTE: Solo il `ontap-nas` driver (con protocollo NFS) è supportato per i sistemi NetApp AFX; il protocollo SMB non è supportato.
+
+Nella configurazione del backend Trident, non è necessario specificare che il sistema sia un NetApp AFX storage system. Quando si seleziona  `ontap-nas` come  `storageDriverName`, Trident rileva automaticamente il sistema storage AFX. Alcuni parametri di configurazione del backend non sono applicabili ai sistemi storage AFX, come indicato nella tabella seguente.
+
+
+
+== Opzioni di configurazione del backend
+
+Consulta la tabella seguente per le opzioni di configurazione del backend:
+
+[cols="1,3,2"]
+|===
+| Parametro | Descrizione | Predefinito 
+
+
+| `version` |  | Sempre 1 
+
+
+| `storageDriverName`  a| 
+Nome del driver di archiviazione
+
+
+NOTE: Per i sistemi NetApp AFX, è supportato solo  `ontap-nas`.
+| `ontap-nas`, `ontap-nas-economy`, o `ontap-nas-flexgroup` 
+
+
+| `backendName` | Nome personalizzato o lo storage backend | Nome driver + "_" + dataLIF 
+
+
+| `managementLIF` | Indirizzo IP di un cluster o di un LIF di gestione SVM. È possibile specificare un fully-qualified domain name (FQDN). Può essere impostato per utilizzare indirizzi IPv6 se Trident è stato installato utilizzando il flag IPv6. Gli indirizzi IPv6 devono essere definiti tra parentesi quadre, ad esempio  `[28e8:d9fb:a825:b7bf:69a8:d02f:9e7b:3555]`. Per un passaggio senza interruzioni di MetroCluster, vedere <<mcc-best>>. | "10.0.0.1", "[2001:1234:abcd::fefe]" 
+
+
+| `dataLIF` | Indirizzo IP del protocollo LIF. NetApp consiglia di specificare `dataLIF`. Se non specificato, Trident recupera i dataLIF dall'SVM. È possibile specificare un fully-qualified domain name (FQDN) da utilizzare per le operazioni di montaggio NFS, consentendo di creare un round-robin DNS per il bilanciamento del carico su più dataLIF. Può essere modificato dopo l'impostazione iniziale. Fare riferimento a . Può essere impostato per utilizzare indirizzi IPv6 se Trident è stato installato utilizzando il flag IPv6. Gli indirizzi IPv6 devono essere definiti tra parentesi quadre, ad esempio `[28e8:d9fb:a825:b7bf:69a8:d02f:9e7b:3555]`. *Omettere per MetroCluster.* Vedere il <<mcc-best>>. | Indirizzo specificato o derivato da SVM, se non specificato (non consigliato) 
+
+
+| `svm` | Macchina virtuale di storage da utilizzare *Ometti per MetroCluster.* Vedi la <<mcc-best>>. | Derivato se viene specificato un SVM `managementLIF` 
+
+
+| `autoExportPolicy` | Abilita la creazione e l'aggiornamento automatici delle policy di esportazione [Boolean]. Utilizzando le opzioni  `autoExportPolicy` e  `autoExportCIDRs`, Trident può gestire automaticamente le policy di esportazione. | falso 
+
+
+| `autoExportCIDRs` | Elenco di CIDR in base ai quali filtrare gli IP dei nodi Kubernetes quando `autoExportPolicy` è abilitato. Utilizzando le `autoExportPolicy` e `autoExportCIDRs` opzioni, Trident può gestire automaticamente le policy di esportazione. | ["0.0.0.0/0", "::/0"]` 
+
+
+| `labels` | Set di etichette arbitrarie in formato JSON da applicare ai volumi | "" 
+
+
+| `clientCertificate` | Valore codificato in Base64 del certificato client. Utilizzato per l'autenticazione basata su certificato | "" 
+
+
+| `clientPrivateKey` | Valore codificato in Base64 della chiave privata del client. Utilizzato per l'autenticazione basata su certificato | "" 
+
+
+| `trustedCACertificate` | Valore codificato in Base64 del certificato CA attendibile. Facoltativo. Utilizzato per l'autenticazione basata su certificato | "" 
+
+
+| `username` | Nome utente per connettersi al cluster/SVM. Utilizzato per l'autenticazione basata su credenziali. Per l'autenticazione di Active Directory, vedere link:../trident-use/ontap-san-examples.html#authenticate-trident-to-a-backend-svm-using-active-directory-credentials["Autenticare Trident a un backend SVM utilizzando le credenziali di Active Directory"]. |  
+
+
+| `password` | Password per connettersi al cluster/SVM. Utilizzata per l'autenticazione basata su credenziali. Per l'autenticazione di Active Directory, vedere link:../trident-use/ontap-san-examples.html#authenticate-trident-to-a-backend-svm-using-active-directory-credentials["Autenticare Trident a un backend SVM utilizzando le credenziali di Active Directory"]. |  
+
+
+| `storagePrefix`  a| 
+Prefisso utilizzato durante il provisioning di nuovi volumi nell'SVM. Non può essere aggiornato dopo averlo impostato
+
+
+NOTE: Quando si utilizza ontap-nas-economy e un storagePrefix che è di 24 o più caratteri, i qtree non avranno il prefisso di archiviazione incorporato, anche se sarà presente nel nome del volume.
+| "Trident" 
+
+
+| `aggregate`  a| 
+Aggregato per il provisioning (facoltativo; se impostato, deve essere assegnato alla SVM). Per il  `ontap-nas-flexgroup` driver, questa opzione viene ignorata. Se non assegnato, qualsiasi degli aggregati disponibili può essere utilizzato per il provisioning di un FlexGroup volume.
+
+
+NOTE: Quando l'aggregato viene aggiornato in SVM, viene aggiornato automaticamente in Trident interrogando SVM senza dover riavviare il Trident Controller. Quando hai configurato un aggregato specifico in Trident per il provisioning dei volumi, se l'aggregato viene rinominato o spostato fuori dalla SVM, il backend passerà allo stato di errore in Trident durante l'interrogazione dell'aggregato SVM. Devi modificare l'aggregato con uno presente sulla SVM o rimuoverlo completamente per riportare online il backend.
+
+*Non specificare per i sistemi di storage AFX.*
+ a| 
+""
+
+
+
+| `limitAggregateUsage` | Il provisioning fallisce se l'utilizzo supera questa percentuale. *Non si applica ad Amazon FSx per ONTAP*. *Non specificare per i sistemi di storage AFX.* | "" (non applicato di default) 
+
+
+| flexgroupAggregateList  a| 
+Elenco di aggregati per il provisioning (facoltativo; se impostato, deve essere assegnato alla SVM). Tutti gli aggregati assegnati alla SVM vengono utilizzati per il provisioning di un FlexGroup volume. Supportato per il driver di storage *ontap-nas-flexgroup*.
+
+
+NOTE: Quando l'elenco degli aggregati viene aggiornato in SVM, l'elenco viene aggiornato automaticamente in Trident interrogando SVM senza dover riavviare il Trident Controller. Quando hai configurato un elenco di aggregati specifico in Trident per il provisioning dei volumi, se l'elenco degli aggregati viene rinominato o spostato fuori da SVM, il backend passerà allo stato di errore in Trident durante l'interrogazione dell'aggregato SVM. Devi modificare l'elenco degli aggregati con uno presente su SVM o rimuoverlo completamente per riportare online il backend.
+| "" 
+
+
+| `limitVolumeSize` | Il provisioning non riesce se la dimensione del volume richiesto è superiore a questo valore. | "" (non applicato per impostazione predefinita) 
+
+
+| `debugTraceFlags` | Flag di debug da utilizzare durante la risoluzione dei problemi. Ad esempio, {"api":false, "method":true} non utilizzare  `debugTraceFlags` a meno che non si stia risolvendo un problema e si richieda un dump dettagliato del log. | null 
+
+
+| `nasType` | Configura la creazione di volumi NFS o SMB. Le opzioni sono  `nfs`,  `smb` o null. Impostando su null, i volumi NFS vengono impostati come predefiniti. *Se specificato, impostare sempre su  `nfs` per i sistemi di storage AFX*. | `nfs` 
+
+
+| `nfsMountOptions` | Elenco separato da virgole delle opzioni di montaggio NFS. Le opzioni di montaggio per i volumi persistenti Kubernetes sono normalmente specificate nelle classi di storage, ma se non vengono specificate opzioni di montaggio in una classe di storage, Trident utilizzerà le opzioni di montaggio specificate nel file di configurazione del backend di storage. Se non vengono specificate opzioni di montaggio nella classe di storage o nel file di configurazione, Trident non imposterà alcuna opzione di montaggio su un volume persistente associato. | "" 
+
+
+| `qtreesPerFlexvol` | Numero massimo di Qtree per FlexVol, deve essere nell'intervallo [50, 300] | "200" 
+
+
+| `smbShare` | È possibile specificare uno dei seguenti valori: il nome di una condivisione SMB creata tramite Microsoft Management Console o ONTAP CLI; un nome per consentire a Trident di creare la condivisione SMB; oppure è possibile lasciare il parametro vuoto per impedire l'accesso condiviso ai volumi. Questo parametro è facoltativo per ONTAP on-premises. Questo parametro è obbligatorio per Amazon FSx for ONTAP backends e non può essere vuoto. | `smb-share` 
+
+
+| `useREST` | Parametro booleano per utilizzare le ONTAP REST API.  `useREST`Quando impostato su `true`, Trident utilizza le ONTAP REST API per comunicare con il backend; quando impostato su `false`, Trident utilizza le chiamate ONTAPI (ZAPI) per comunicare con il backend. Questa funzionalità richiede ONTAP 9.11.1 e versioni successive. Inoltre, il ruolo di login ONTAP utilizzato deve avere accesso all'applicazione `ontapi`. Questo è soddisfatto dai ruoli predefiniti `vsadmin` e `cluster-admin`. A partire dalla release Trident 24.06 e ONTAP 9.15.1 o versioni successive,  `useREST`è impostato su `true` per impostazione predefinita; modificare  `useREST` su `false` per utilizzare le chiamate ONTAPI (ZAPI). *Se specificato, impostare sempre su `true` per i sistemi di storage AFX*. | `true` per ONTAP 9.15.1 o versioni successive, altrimenti  `false`. 
+
+
+| `limitVolumePoolSize` | Dimensione massima richiedibile FlexVol quando si utilizzano Qtrees nel backend ontap-nas-economy. | "" (non applicato di default) 
+
+
+| `denyNewVolumePools` | Restringe  `ontap-nas-economy` i backend dal creare nuovi volumi FlexVol per contenere i loro Qtree. Solo i FlexVol preesistenti vengono utilizzati per il provisioning di nuovi PV. |  
+
+
+| `adAdminUser` | Utente o gruppo di utenti amministratore di Active Directory con accesso completo alle condivisioni SMB. Utilizzare questo parametro per fornire diritti di amministratore alla condivisione SMB con controllo completo. |  
+|===
+
+
+== Opzioni di configurazione del backend per il provisioning dei volumi
+
+È possibile controllare il provisioning predefinito utilizzando queste opzioni nella  `defaults` sezione della configurazione. Per un esempio, vedere gli esempi di configurazione riportati di seguito.
+
+[cols="1,3,2"]
+|===
+| Parametro | Descrizione | Predefinito 
+
+
+| `spaceAllocation` | Allocazione dello spazio per Qtrees | "true" 
+
+
+| `spaceReserve` | Modalità di prenotazione dello spazio; "none" (thin) o "volume" (thick) | "none" 
+
+
+| `snapshotPolicy` | policy di Snapshot da utilizzare | "none" 
+
+
+| `qosPolicy` | Gruppo di policy QoS da assegnare ai volumi creati. Scegli uno tra qosPolicy o adaptiveQosPolicy per ogni pool di storage/backend | "" 
+
+
+| `adaptiveQosPolicy` | Gruppo di policy QoS adattivo da assegnare ai volumi creati. Scegli uno tra qosPolicy o adaptiveQosPolicy per ogni pool di storage/backend. Non supportato da ontap-nas-economy. | "" 
+
+
+| `snapshotReserve` | Percentuale di volume riservata alle snapshot | "0" se  `snapshotPolicy` è "none", altrimenti "" 
+
+
+| `splitOnClone` | Dividere un clone dal suo genitore al momento della creazione | "false" 
+
+
+| `encryption` | Abilita NetApp Volume Encryption (NVE) sul nuovo volume; l'impostazione predefinita è  `false`. NVE deve essere concesso in licenza e abilitato sul cluster per utilizzare questa opzione. Se NAE è abilitato sul backend, qualsiasi volume fornito in Trident sarà abilitato per NAE. Per ulteriori informazioni, fare riferimento a: link:../trident-reco/security-reco.html["Come funziona Trident con NVE e NAE"]. | "false" 
+
+
+| `tieringPolicy` | Policy di tiering da utilizzare "none" |  
+
+
+| `unixPermissions` | Modalità per nuovi volumi | "777" per i volumi NFS; vuoto (non applicabile) per i volumi SMB 
+
+
+| `snapshotDir` | Controlla l'accesso alla `.snapshot` directory | "true" per NFSv4 "false" per NFSv3 
+
+
+| `exportPolicy` | Policy di esportazione da utilizzare | "default" 
+
+
+| `securityStyle` | Stile di sicurezza per i nuovi volumi. NFS supporta `mixed` e `unix` stili di sicurezza. SMB supporta `mixed` e `ntfs` stili di sicurezza. | L'impostazione predefinita di NFS è  `unix`. L'impostazione predefinita di SMB è  `ntfs`. 
+
+
+| `nameTemplate` | Modello per creare nomi di volume personalizzati. | "" 
+|===
+
+NOTE: L'utilizzo di gruppi di policy QoS con Trident richiede ONTAP 9.8 o versioni successive. Dovresti utilizzare un gruppo di policy QoS non condiviso e assicurarti che il gruppo di policy venga applicato a ciascun componente individualmente. Un gruppo di policy QoS condiviso impone il limite massimo per il throughput totale di tutti i carichi di lavoro.
+
+
+
+=== Esempi di provisioning del volume
+
+Ecco un esempio con i valori predefiniti:
+
+[source, yaml]
+----
+---
+version: 1
+storageDriverName: ontap-nas
+backendName: customBackendName
+managementLIF: 10.0.0.1
+dataLIF: 10.0.0.2
+labels:
+  k8scluster: dev1
+  backend: dev1-nasbackend
+svm: trident_svm
+username: cluster-admin
+password: <password>
+limitAggregateUsage: 80%
+limitVolumeSize: 50Gi
+nfsMountOptions: nfsvers=4
+debugTraceFlags:
+  api: false
+  method: true
+defaults:
+  spaceReserve: volume
+  qosPolicy: premium
+  exportPolicy: myk8scluster
+  snapshotPolicy: default
+  snapshotReserve: "10"
+----
+Per  `ontap-nas` e  `ontap-nas-flexgroups`, Trident ora utilizza un nuovo calcolo per garantire che il FlexVol sia dimensionato correttamente con la percentuale di snapshotReserve e il PVC. Quando l'utente richiede un PVC, Trident crea il FlexVol originale con più spazio utilizzando il nuovo calcolo. Questo calcolo garantisce che l'utente riceva lo spazio scrivibile richiesto nel PVC e non meno spazio di quanto richiesto. Prima della v21.07, quando l'utente richiedeva un PVC (ad esempio, 5 GiB), con la snapshotReserve al 50 percento, otteneva solo 2,5 GiB di spazio scrivibile. Questo perché ciò che l'utente richiedeva era l'intero volume e  `snapshotReserve` era una percentuale di quello. Con Trident 21.07, ciò che l'utente richiede è lo spazio scrivibile e Trident definisce il numero di  `snapshotReserve` come percentuale dell'intero volume. Questo non si applica a  `ontap-nas-economy`. Vedi il seguente esempio per capire come funziona:
+
+Il calcolo è il seguente:
+
+[listing]
+----
+Total volume size = <PVC requested size> / (1 - (<snapshotReserve percentage> / 100))
+----
+Per snapshotReserve = 50% e richiesta PVC = 5 GiB, la dimensione totale del volume è 5/0,5 = 10 GiB e la dimensione disponibile è 5 GiB, che è quanto richiesto dall'utente nella richiesta PVC. Il  `volume show` comando dovrebbe mostrare risultati simili a questo esempio:
+
+image::../media/volume-show-nas.png[Mostra l'output del comando volume show.]
+
+I backend esistenti delle installazioni precedenti eseguiranno il provisioning dei volumi come spiegato sopra durante l'aggiornamento Trident. Per i volumi che hai creato prima dell'aggiornamento, dovresti ridimensionare i loro volumi affinché la modifica venga rilevata. Ad esempio, un PVC da 2 GiB con  `snapshotReserve=50` in precedenza generava un volume che forniva 1 GiB di spazio scrivibile. Ridimensionando il volume a 3 GiB, ad esempio, si forniscono all'applicazione 3 GiB di spazio scrivibile su un volume da 6 GiB.
+
+
+
+== Esempi di configurazione minima
+
+Gli esempi seguenti mostrano configurazioni di base che lasciano la maggior parte dei parametri ai valori predefiniti. Questo è il modo più semplice per definire un backend.
+
+
+NOTE: Se si utilizza Amazon FSx su NetApp ONTAP con Trident, si consiglia di specificare i nomi DNS per i LIF anziché gli indirizzi IP.
+
+.Esempio di ONTAP NAS economy
+[%collapsible]
+====
+[source, yaml]
+----
+---
+version: 1
+storageDriverName: ontap-nas-economy
+managementLIF: 10.0.0.1
+dataLIF: 10.0.0.2
+svm: svm_nfs
+username: vsadmin
+password: password
+----
+====
+.Esempio di ONTAP NAS FlexGroup
+[%collapsible]
+====
+[source, yaml]
+----
+---
+version: 1
+storageDriverName: ontap-nas-flexgroup
+managementLIF: 10.0.0.1
+dataLIF: 10.0.0.2
+svm: svm_nfs
+username: vsadmin
+password: password
+----
+====
+.Esempio di MetroCluster
+[#mcc-best%collapsible]
+====
+È possibile configurare il backend per evitare di dover aggiornare manualmente la definizione del backend dopo lo switchover e lo switchback durante link:../trident-reco/backup.html#svm-replication-and-recovery["Replica e recovery SVM"].
+
+Per un passaggio e un ritorno senza interruzioni, specificare l'SVM utilizzando  `managementLIF` e omettere i parametri  `dataLIF` e  `svm`. Ad esempio:
+
+[source, yaml]
+----
+---
+version: 1
+storageDriverName: ontap-nas
+managementLIF: 192.168.1.66
+username: vsadmin
+password: password
+----
+====
+.Esempio di volumi SMB
+[%collapsible]
+====
+[source, yaml]
+----
+---
+version: 1
+backendName: ExampleBackend
+storageDriverName: ontap-nas
+managementLIF: 10.0.0.1
+nasType: smb
+securityStyle: ntfs
+unixPermissions: ""
+dataLIF: 10.0.0.2
+svm: svm_nfs
+username: vsadmin
+password: password
+----
+====
+.Esempio di autenticazione basata su certificato
+[%collapsible]
+====
+Questo è un esempio di configurazione minima del backend. `clientCertificate`, `clientPrivateKey`, e `trustedCACertificate` (facoltativo, se si utilizza una CA attendibile) vengono popolati in `backend.json` e accettano rispettivamente i valori codificati in base64 del certificato client, della chiave privata e del certificato CA attendibile.
+
+[source, yaml]
+----
+---
+version: 1
+backendName: DefaultNASBackend
+storageDriverName: ontap-nas
+managementLIF: 10.0.0.1
+dataLIF: 10.0.0.15
+svm: nfs_svm
+clientCertificate: ZXR0ZXJwYXB...ICMgJ3BhcGVyc2
+clientPrivateKey: vciwKIyAgZG...0cnksIGRlc2NyaX
+trustedCACertificate: zcyBbaG...b3Igb3duIGNsYXNz
+storagePrefix: myPrefix_
+----
+====
+.Esempio di policy di esportazione automatica
+[%collapsible]
+====
+Questo esempio mostra come istruire Trident a utilizzare policy di esportazione dinamiche per creare e gestire automaticamente la policy di esportazione. Questo funziona allo stesso modo per i driver  `ontap-nas-economy` e  `ontap-nas-flexgroup`.
+
+[source, yaml]
+----
+---
+version: 1
+storageDriverName: ontap-nas
+managementLIF: 10.0.0.1
+dataLIF: 10.0.0.2
+svm: svm_nfs
+labels:
+  k8scluster: test-cluster-east-1a
+  backend: test1-nasbackend
+autoExportPolicy: true
+autoExportCIDRs:
+- 10.0.0.0/24
+username: admin
+password: password
+nfsMountOptions: nfsvers=4
+----
+====
+.Esempio di indirizzi IPv6
+[%collapsible]
+====
+Questo esempio mostra `managementLIF` l'utilizzo di un indirizzo IPv6.
+
+[source, yaml]
+----
+---
+version: 1
+storageDriverName: ontap-nas
+backendName: nas_ipv6_backend
+managementLIF: "[5c5d:5edf:8f:7657:bef8:109b:1b41:d491]"
+labels:
+  k8scluster: test-cluster-east-1a
+  backend: test1-ontap-ipv6
+svm: nas_ipv6_svm
+username: vsadmin
+password: password
+----
+====
+.Esempio di Amazon FSx for ONTAP che utilizza volumi SMB
+[%collapsible]
+====
+Il  `smbShare` parametro è obbligatorio per Amazon FSx for ONTAP che utilizza volumi SMB.
+
+[source, yaml]
+----
+---
+version: 1
+backendName: SMBBackend
+storageDriverName: ontap-nas
+managementLIF: example.mgmt.fqdn.aws.com
+nasType: smb
+dataLIF: 10.0.0.15
+svm: nfs_svm
+smbShare: smb-share
+clientCertificate: ZXR0ZXJwYXB...ICMgJ3BhcGVyc2
+clientPrivateKey: vciwKIyAgZG...0cnksIGRlc2NyaX
+trustedCACertificate: zcyBbaG...b3Igb3duIGNsYXNz
+storagePrefix: myPrefix_
+----
+====
+.Esempio di configurazione del backend con nameTemplate
+[%collapsible]
+====
+[source, yaml]
+----
+---
+version: 1
+storageDriverName: ontap-nas
+backendName: ontap-nas-backend
+managementLIF: <ip address>
+svm: svm0
+username: <admin>
+password: <password>
+defaults:
+  nameTemplate: "{{.volume.Name}}_{{.labels.cluster}}_{{.volume.Namespace}}_{{.vo\
+    lume.RequestName}}"
+labels:
+  cluster: ClusterA
+  PVC: "{{.volume.Namespace}}_{{.volume.RequestName}}"
+----
+====
+
+
+== Esempi di backend con pool virtuali
+
+Nei file di definizione del backend di esempio mostrati di seguito, vengono impostati valori predefiniti specifici per tutti i pool di storage, come  `spaceReserve` a none,  `spaceAllocation` a false e  `encryption` a false. I pool virtuali sono definiti nella sezione storage.
+
+Trident imposta le etichette di provisioning nel campo "Commenti". I commenti sono impostati su FlexVol per  `ontap-nas` o FlexGroup per  `ontap-nas-flexgroup`. Trident copia tutte le etichette presenti su un pool virtuale sul volume di storage al momento del provisioning. Per comodità, gli amministratori di storage possono definire etichette per pool virtuale e raggruppare i volumi in base all'etichetta.
+
+In questi esempi, alcuni pool di storage impostano i propri  `spaceReserve`, `spaceAllocation` e  `encryption` valori, mentre alcuni pool sovrascrivono i valori predefiniti.
+
+.Esempio di ONTAP NAS
+[%collapsible%open]
+====
+[source, yaml]
+----
+---
+version: 1
+storageDriverName: ontap-nas
+managementLIF: 10.0.0.1
+svm: svm_nfs
+username: admin
+password: <password>
+nfsMountOptions: nfsvers=4
+defaults:
+  spaceReserve: none
+  encryption: "false"
+  qosPolicy: standard
+labels:
+  store: nas_store
+  k8scluster: prod-cluster-1
+region: us_east_1
+storage:
+  - labels:
+      app: msoffice
+      cost: "100"
+    zone: us_east_1a
+    defaults:
+      spaceReserve: volume
+      encryption: "true"
+      unixPermissions: "0755"
+      adaptiveQosPolicy: adaptive-premium
+  - labels:
+      app: slack
+      cost: "75"
+    zone: us_east_1b
+    defaults:
+      spaceReserve: none
+      encryption: "true"
+      unixPermissions: "0755"
+  - labels:
+      department: legal
+      creditpoints: "5000"
+    zone: us_east_1b
+    defaults:
+      spaceReserve: none
+      encryption: "true"
+      unixPermissions: "0755"
+  - labels:
+      app: wordpress
+      cost: "50"
+    zone: us_east_1c
+    defaults:
+      spaceReserve: none
+      encryption: "true"
+      unixPermissions: "0775"
+  - labels:
+      app: mysqldb
+      cost: "25"
+    zone: us_east_1d
+    defaults:
+      spaceReserve: volume
+      encryption: "false"
+      unixPermissions: "0775"
+
+----
+====
+.Esempio di ONTAP NAS FlexGroup
+[%collapsible%open]
+====
+[source, yaml]
+----
+---
+version: 1
+storageDriverName: ontap-nas-flexgroup
+managementLIF: 10.0.0.1
+svm: svm_nfs
+username: vsadmin
+password: <password>
+defaults:
+  spaceReserve: none
+  encryption: "false"
+labels:
+  store: flexgroup_store
+  k8scluster: prod-cluster-1
+region: us_east_1
+storage:
+  - labels:
+      protection: gold
+      creditpoints: "50000"
+    zone: us_east_1a
+    defaults:
+      spaceReserve: volume
+      encryption: "true"
+      unixPermissions: "0755"
+  - labels:
+      protection: gold
+      creditpoints: "30000"
+    zone: us_east_1b
+    defaults:
+      spaceReserve: none
+      encryption: "true"
+      unixPermissions: "0755"
+  - labels:
+      protection: silver
+      creditpoints: "20000"
+    zone: us_east_1c
+    defaults:
+      spaceReserve: none
+      encryption: "true"
+      unixPermissions: "0775"
+  - labels:
+      protection: bronze
+      creditpoints: "10000"
+    zone: us_east_1d
+    defaults:
+      spaceReserve: volume
+      encryption: "false"
+      unixPermissions: "0775"
+
+----
+====
+.Esempio di ONTAP NAS economy
+[%collapsible%open]
+====
+[source, yaml]
+----
+---
+version: 1
+storageDriverName: ontap-nas-economy
+managementLIF: 10.0.0.1
+svm: svm_nfs
+username: vsadmin
+password: <password>
+defaults:
+  spaceReserve: none
+  encryption: "false"
+labels:
+  store: nas_economy_store
+region: us_east_1
+storage:
+  - labels:
+      department: finance
+      creditpoints: "6000"
+    zone: us_east_1a
+    defaults:
+      spaceReserve: volume
+      encryption: "true"
+      unixPermissions: "0755"
+  - labels:
+      protection: bronze
+      creditpoints: "5000"
+    zone: us_east_1b
+    defaults:
+      spaceReserve: none
+      encryption: "true"
+      unixPermissions: "0755"
+  - labels:
+      department: engineering
+      creditpoints: "3000"
+    zone: us_east_1c
+    defaults:
+      spaceReserve: none
+      encryption: "true"
+      unixPermissions: "0775"
+  - labels:
+      department: humanresource
+      creditpoints: "2000"
+    zone: us_east_1d
+    defaults:
+      spaceReserve: volume
+      encryption: "false"
+      unixPermissions: "0775"
+
+----
+====
+
+
+== Mappa i backend a StorageClasses
+
+Le seguenti definizioni di StorageClass si riferiscono a <<Esempi di backend con pool virtuali>>. Utilizzando il campo  `parameters.selector`, ciascuna StorageClass indica quali pool virtuali possono essere utilizzati per ospitare un volume. Il volume avrà gli aspetti definiti nel pool virtuale scelto.
+
+* Il  `protection-gold` StorageClass verrà mappato sul primo e sul secondo pool virtuale nel  `ontap-nas-flexgroup` backend. Questi sono gli unici pool che offrono protezione di livello gold.
++
+[source, yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: protection-gold
+provisioner: csi.trident.netapp.io
+parameters:
+  selector: "protection=gold"
+  fsType: "ext4"
+----
+* Il `protection-not-gold` StorageClass verrà mappato sul terzo e quarto pool virtuale nel `ontap-nas-flexgroup` backend. Questi sono gli unici pool che offrono un livello di protezione diverso da gold.
++
+[source, yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: protection-not-gold
+provisioner: csi.trident.netapp.io
+parameters:
+  selector: "protection!=gold"
+  fsType: "ext4"
+----
+* Il `app-mysqldb` StorageClass verrà mappato sul quarto pool virtuale nel `ontap-nas` backend. Questo è l'unico pool che offre la configurazione del pool di storage per app di tipo mysqldb.
++
+[source, yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: app-mysqldb
+provisioner: csi.trident.netapp.io
+parameters:
+  selector: "app=mysqldb"
+  fsType: "ext4"
+----
+* TThe `protection-silver-creditpoints-20k` StorageClass verrà mappato sul terzo pool virtuale nel `ontap-nas-flexgroup` backend. Questo è l'unico pool che offre protezione di livello silver e 20000 creditpoints.
++
+[source, yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: protection-silver-creditpoints-20k
+provisioner: csi.trident.netapp.io
+parameters:
+  selector: "protection=silver; creditpoints=20000"
+  fsType: "ext4"
+----
+* Il  `creditpoints-5k` StorageClass verrà mappato sul terzo pool virtuale nel  `ontap-nas` backend e sul secondo pool virtuale nel  `ontap-nas-economy` backend. Queste sono le uniche offerte di pool con 5000 creditpoints.
++
+[source, yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: creditpoints-5k
+provisioner: csi.trident.netapp.io
+parameters:
+  selector: "creditpoints=5000"
+  fsType: "ext4"
+----
+
+
+Trident deciderà quale pool virtuale selezionare e garantirà che il requisito di storage sia soddisfatto.
+
+
+
+== Aggiorna `dataLIF` dopo la configurazione iniziale
+
+È possibile modificare il dataLIF dopo la configurazione iniziale eseguendo il comando seguente per fornire il nuovo file JSON backend con il dataLIF aggiornato.
+
+[listing]
+----
+tridentctl update backend <backend-name> -f <path-to-backend-json-file-with-updated-dataLIF>
+----
+
+NOTE: Se i PVC sono collegati a uno o più pod, è necessario disattivare tutti i pod corrispondenti e quindi riattivarli affinché il nuovo dataLIF abbia effetto.
+
+
+
+== Esempi di SMB sicuro
+
+
+
+=== Configurazione del backend con driver ontap-nas
+
+[source, yaml]
+----
+apiVersion: trident.netapp.io/v1
+kind: TridentBackendConfig
+metadata:
+  name: backend-tbc-ontap-nas
+  namespace: trident
+spec:
+  version: 1
+  storageDriverName: ontap-nas
+  managementLIF: 10.0.0.1
+  svm: svm2
+  nasType: smb
+  defaults:
+    adAdminUser: tridentADtest
+  credentials:
+    name: backend-tbc-ontap-invest-secret
+----
+
+
+=== Configurazione backend con driver ontap-nas-economy
+
+[source, yaml]
+----
+apiVersion: trident.netapp.io/v1
+kind: TridentBackendConfig
+metadata:
+  name: backend-tbc-ontap-nas
+  namespace: trident
+spec:
+  version: 1
+  storageDriverName: ontap-nas-economy
+  managementLIF: 10.0.0.1
+  svm: svm2
+  nasType: smb
+  defaults:
+    adAdminUser: tridentADtest
+  credentials:
+    name: backend-tbc-ontap-invest-secret
+----
+
+
+=== Configurazione backend con pool di storage
+
+[source, yaml]
+----
+apiVersion: trident.netapp.io/v1
+kind: TridentBackendConfig
+metadata:
+  name: backend-tbc-ontap-nas
+  namespace: trident
+spec:
+  version: 1
+  storageDriverName: ontap-nas
+  managementLIF: 10.0.0.1
+  svm: svm0
+  useREST: false
+  storage:
+  - labels:
+      app: msoffice
+    defaults:
+      adAdminUser: tridentADuser
+  nasType: smb
+  credentials:
+    name: backend-tbc-ontap-invest-secret
+
+----
+
+
+=== Esempio di storage class con driver ontap-nas
+
+[source, yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ontap-smb-sc
+  annotations:
+    trident.netapp.io/smbShareAdUserPermission: change
+    trident.netapp.io/smbShareAdUser: tridentADtest
+parameters:
+  backendType: ontap-nas
+  csi.storage.k8s.io/node-stage-secret-name: smbcreds
+  csi.storage.k8s.io/node-stage-secret-namespace: trident
+  trident.netapp.io/nasType: smb
+provisioner: csi.trident.netapp.io
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+----
+
+NOTE: Assicurati di aggiungere `annotations` per abilitare SMB sicuro. SMB sicuro non funziona senza le annotazioni, indipendentemente dalle configurazioni impostate nel Backend o nel PVC.
+
+
+
+=== Esempio di storage class con driver ontap-nas-economy
+
+[source, yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ontap-smb-sc
+  annotations:
+    trident.netapp.io/smbShareAdUserPermission: change
+    trident.netapp.io/smbShareAdUser: tridentADuser3
+parameters:
+  backendType: ontap-nas-economy
+  csi.storage.k8s.io/node-stage-secret-name: smbcreds
+  csi.storage.k8s.io/node-stage-secret-namespace: trident
+  trident.netapp.io/nasType: smb
+provisioner: csi.trident.netapp.io
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+----
+
+
+=== Esempio di PVC con un singolo utente AD
+
+[source, yaml]
+----
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc4
+  namespace: trident
+  annotations:
+    trident.netapp.io/smbShareAccessControl: |
+      change:
+        - tridentADtest
+      read:
+        - tridentADuser
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ontap-smb-sc
+----
+
+
+=== Esempio di PVC con più utenti AD
+
+[source, yaml]
+----
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-test-pvc
+  annotations:
+    trident.netapp.io/smbShareAccessControl: |
+      full_control:
+        - tridentTestuser
+        - tridentuser
+        - tridentTestuser1
+        - tridentuser1
+      change:
+        - tridentADuser
+        - tridentADuser1
+        - tridentADuser4
+        - tridentTestuser2
+      read:
+        - tridentTestuser2
+        - tridentTestuser3
+        - tridentADuser2
+        - tridentADuser3
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+----

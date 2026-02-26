@@ -1,0 +1,106 @@
+---
+sidebar: sidebar 
+permalink: trident-protect/trident-protect-generate-support-bundle.html 
+keywords: trident, protect, bundle, support, netapp, custom, resource, file 
+summary: 'Trident Protect consente agli amministratori di generare bundle che includono informazioni utili per NetApp Support, tra cui log, metriche e informazioni sulla topologia dei cluster e delle app gestite. Se si è connessi a Internet, è possibile caricare i bundle di supporto sul NetApp Support Site (NSS) utilizzando un file custom resource (CR).' 
+---
+= Generare un bundle di supporto Trident Protect
+:hardbreaks:
+:allow-uri-read: 
+:nofooter: 
+:icons: font
+:linkattrs: 
+:imagesdir: ../media/
+
+
+[role="lead"]
+Trident Protect consente agli amministratori di generare bundle che includono informazioni utili a NetApp Support, tra cui log, metriche e informazioni sulla topologia dei cluster e delle app gestite. Se si è connessi a Internet, è possibile caricare i bundle di supporto sul NetApp Support Site (NSS) utilizzando un file custom resource (CR).
+
+[role="tabbed-block"]
+====
+.Crea un bundle di supporto utilizzando un CR
+--
+.Passaggi
+. Creare il file custom resource (CR) e assegnargli un nome (ad esempio  `trident-protect-support-bundle.yaml`).
+. Configura i seguenti attributi:
++
+** *metadata.name*: (_Obbligatorio_) Il nome di questa risorsa personalizzata; scegli un nome univoco e sensato per il tuo ambiente.
+** *spec.triggerType*: (_Required_) Determina se il bundle di supporto viene generato immediatamente o programmato. La generazione del bundle programmato avviene alle 12AM UTC. Valori possibili:
++
+*** In programma
+*** Manuale
+
+
+** *spec.uploadEnabled*: (_Opzionale_) Controlla se il bundle di supporto deve essere caricato sul NetApp Support Site dopo essere stato generato. Se non specificato, il valore predefinito è `false`. Valori possibili:
++
+*** true
+*** false (predefinito)
+
+
+** *spec.dataWindowStart*: (_Opzionale_) Una stringa di data nel formato RFC 3339 che specifica la data e l'ora in cui deve iniziare la finestra dei dati inclusi nel support bundle. Se non specificato, il valore predefinito è 24 ore fa. La data più remota della finestra che si può specificare è 7 giorni fa.
++
+Esempio YAML:
+
++
+[source, yaml]
+----
+---
+apiVersion: protect.trident.netapp.io/v1
+kind: AutoSupportBundle
+metadata:
+  name: trident-protect-support-bundle
+spec:
+  triggerType: Manual
+  uploadEnabled: true
+  dataWindowStart: 2024-05-05T12:30:00Z
+----
+
+
+. Dopo aver popolato il  `trident-protect-support-bundle.yaml` file con i valori corretti, applica la CR:
++
+[source, console]
+----
+kubectl apply -f trident-protect-support-bundle.yaml -n trident-protect
+----
+
+
+--
+.Crea un bundle di supporto utilizzando la CLI
+--
+.Passaggi
+. Crea il bundle di supporto, sostituendo i valori tra parentesi con le informazioni del tuo ambiente. Il  `trigger-type` determina se il bundle viene creato immediatamente o se l'orario di creazione è dettato dalla pianificazione, e può essere  `Manual` o  `Scheduled`. L'impostazione predefinita è  `Manual`.
++
+Ad esempio:
+
++
+[source, console]
+----
+tridentctl-protect create autosupportbundle <my-bundle-name> --trigger-type <trigger-type> -n trident-protect
+----
+
+
+--
+====
+
+
+== Monitora e recupera il pacchetto di supporto
+
+Dopo aver creato un support bundle con uno dei due metodi, puoi monitorare l'avanzamento della generazione e recuperarlo sul tuo sistema locale.
+
+.Passaggi
+. Attendere che `status.generationState` raggiunga lo stato `Completed`. È possibile monitorare l'avanzamento della generazione con il seguente comando:
++
+[source, console]
+----
+kubectl get autosupportbundle trident-protect-support-bundle -n trident-protect
+----
+. Recupera il bundle di supporto nel sistema locale. Ottieni il comando di copia dal bundle completato AutoSupport:
++
+[source, console]
+----
+kubectl describe autosupportbundle trident-protect-support-bundle -n trident-protect
+----
++
+Individua il comando `kubectl cp` dall'output ed eseguilo, sostituendo l'argomento destination con la tua directory locale preferita.
+
+

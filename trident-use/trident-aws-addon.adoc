@@ -1,0 +1,90 @@
+---
+sidebar: sidebar 
+permalink: trident-use/trident-aws-addon.html 
+keywords: Trident add-on, Trident EKS add-on, Trident AWS EKS add-on, integrate Trident, Trident 
+summary: Aggiungi il componente aggiuntivo Trident EKS al cluster Kubernetes. 
+---
+= Configura il componente aggiuntivo Trident EKS su un cluster EKS
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+NetApp Trident semplifica la gestione dello storage Amazon FSx for NetApp ONTAP in Kubernetes, consentendo a sviluppatori e amministratori di concentrarsi sulla distribuzione delle applicazioni. Il componente aggiuntivo NetApp Trident EKS include le patch di sicurezza più recenti, le correzioni di bug ed è convalidato da AWS per funzionare con Amazon EKS. Il componente aggiuntivo EKS consente di garantire costantemente che i cluster Amazon EKS siano sicuri e stabili e di ridurre la quantità di lavoro necessaria per installare, configurare e aggiornare i componenti aggiuntivi.
+
+
+
+== Prerequisiti
+
+Assicurati di avere quanto segue prima di configurare il componente aggiuntivo Trident per AWS EKS:
+
+* Un account cluster Amazon EKS con autorizzazioni per utilizzare i componenti aggiuntivi. Fare riferimento a link:https://docs.aws.amazon.com/eks/latest/userguide/eks-add-ons.html["Componenti aggiuntivi Amazon EKS"^].
+* Autorizzazioni AWS per l'AWS marketplace:
+`"aws-marketplace:ViewSubscriptions",
+"aws-marketplace:Subscribe",
+"aws-marketplace:Unsubscribe`
+* Tipo AMI: Amazon Linux 2 (AL2_x86_64) o Amazon Linux 2 Arm(AL2_ARM_64)
+* Tipo di nodo: AMD o ARM
+* Un file system Amazon FSx per NetApp ONTAP esistente
+
+
+
+
+== Passaggi
+
+. Assicurati di creare il ruolo IAM e il segreto AWS per consentire ai pod EKS di accedere alle risorse AWS. Per istruzioni, consulta link:../trident-use/trident-fsx-iam-role.html["Crea un ruolo IAM e un AWS Secret"^].
+. Nel tuo cluster EKS Kubernetes, vai alla scheda *Componenti aggiuntivi*.
++
+image::../media/aws-eks-01.png[aws eks 01]
+
+. Vai su *AWS Marketplace add-ons* e scegli la categoria _storage_.
++
+image::../media/aws-eks-02.png[aws eks 02]
+
+. Individua *NetApp Trident* e seleziona la casella di controllo per il componente aggiuntivo Trident, quindi fai clic su *Avanti*.
+. Scegli la versione desiderata dell'add-on.
++
+image::../media/aws-eks-03.png[aws eks 03]
+
+. Configura le impostazioni aggiuntive richieste.
++
+image::../media/aws-eks-04.png[aws eks 04]
+
+. Se si utilizza IRSA (IAM roles for service account), fare riferimento ai passaggi di configurazione aggiuntivi link:https://docs.netapp.com/us-en/trident/trident-use/trident-fsx-install-trident.html#enable-the-trident-add-on-for-aws["qui"].
+. Seleziona *Create*.
+. Verificare che lo stato del componente aggiuntivo sia _Active_.
++
+image::../media/aws-eks-05.png[aws eks 05]
+
+. Eseguire il seguente comando per verificare che Trident sia installato correttamente sul cluster:
++
+[listing]
+----
+kubectl get pods -n trident
+----
+. Continua la configurazione e configura il backend di storage. Per informazioni, vedi link:../trident-use/trident-fsx-storage-backend.html["Configura il backend di storage"^].
+
+
+
+
+== Installa/disinstalla il componente aggiuntivo Trident EKS tramite CLI
+
+.Installa il componente aggiuntivo Trident EKS di NetApp utilizzando la CLI:
+Il seguente comando di esempio installa il componente aggiuntivo Trident EKS:
+`eksctl create addon --cluster clusterName --name netapp_trident-operator --version v25.6.0-eksbuild.1` (con una versione dedicata)
+
+Il seguente comando di esempio installa il componente aggiuntivo Trident EKS versione 25.6.1:
+`eksctl create addon --cluster clusterName --name netapp_trident-operator --version v25.6.1-eksbuild.1` (con una versione dedicata)
+
+Il seguente comando di esempio installa il componente aggiuntivo Trident EKS versione 25.6.2:
+`eksctl create addon --cluster clusterName --name netapp_trident-operator --version v25.6.2-eksbuild.1` (con una versione dedicata)
+
+.Disinstalla il componente aggiuntivo NetApp Trident EKS utilizzando la CLI:
+Il seguente comando disinstalla il componente aggiuntivo Trident EKS:
+
+[listing]
+----
+eksctl delete addon --cluster K8s-arm --name netapp_trident-operator
+----

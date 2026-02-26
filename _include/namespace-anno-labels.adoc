@@ -1,0 +1,88 @@
+= Annotazioni ed etichette dello spazio dei nomi durante le operazioni di ripristino e failover
+:allow-uri-read: 
+
+
+
+
+== Annotazioni ed etichette dello spazio dei nomi durante le operazioni di ripristino e failover
+
+Durante le operazioni di ripristino e failover, le etichette e le annotazioni nello spazio dei nomi di destinazione vengono rese corrispondenti alle etichette e alle annotazioni nello spazio dei nomi di origine. Le etichette o le annotazioni dello spazio dei nomi di origine che non esistono nello spazio dei nomi di destinazione vengono aggiunte e tutte le etichette o annotazioni già esistenti vengono sovrascritte per corrispondere al valore dello spazio dei nomi di origine. Le etichette o le annotazioni che esistono solo nello spazio dei nomi di destinazione rimangono invariate.
+
+
+NOTE: Se si utilizza Red Hat OpenShift, è importante tenere presente il ruolo fondamentale delle annotazioni dello spazio dei nomi negli ambienti OpenShift. Le annotazioni dello spazio dei nomi garantiscono che i pod ripristinati aderiscano alle autorizzazioni e alle configurazioni di sicurezza appropriate definite dai vincoli del contesto di sicurezza (SCC) di OpenShift e possano accedere ai volumi senza problemi di autorizzazione. Per ulteriori informazioni, consultare il link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/authentication_and_authorization/managing-pod-security-policies["Documentazione sui vincoli del contesto di sicurezza di OpenShift"^].
+
+È possibile impedire che specifiche annotazioni nello spazio dei nomi di destinazione vengano sovrascritte impostando la variabile di ambiente Kubernetes  `RESTORE_SKIP_NAMESPACE_ANNOTATIONS` prima di eseguire l'operazione di ripristino o failover. Ad esempio:
+
+[source, console]
+----
+helm upgrade trident-protect -n trident-protect netapp-trident-protect/trident-protect \
+  --set-string restoreSkipNamespaceAnnotations="{<annotation_key_to_skip_1>,<annotation_key_to_skip_2>}" \
+  --reuse-values
+----
+
+NOTE: Quando si esegue un'operazione di ripristino o failover, tutte le annotazioni e le etichette dello spazio dei nomi specificate in `restoreSkipNamespaceAnnotations` e `restoreSkipNamespaceLabels` sono escluse dall'operazione di ripristino o failover. Assicurarsi che queste impostazioni siano configurate durante l'installazione iniziale di Helm. Per ulteriori informazioni, consultare link:../trident-protect/trident-protect-customize-installation.html#configure-additional-trident-protect-helm-chart-settings["Configura impostazioni aggiuntive dell'helm chart Trident Protect"].
+
+Se hai installato l'applicazione sorgente utilizzando Helm con il  `--create-namespace` flag, viene riservato un trattamento speciale alla chiave dell'etichetta  `name`. Durante il processo di ripristino o failover, Trident Protect copia questa etichetta nello spazio dei nomi di destinazione, ma aggiorna il valore a quello dello spazio dei nomi di destinazione se il valore della sorgente corrisponde allo spazio dei nomi di origine. Se questo valore non corrisponde allo spazio dei nomi di origine, viene copiato nello spazio dei nomi di destinazione senza modifiche.
+
+
+
+=== Esempio
+
+Il seguente esempio presenta uno spazio dei nomi di origine e uno di destinazione, ciascuno con annotazioni ed etichette diverse. Puoi vedere lo stato dello spazio dei nomi di destinazione prima e dopo l'operazione e come le annotazioni e le etichette vengono combinate o sovrascritte nello spazio dei nomi di destinazione.
+
+
+
+==== Prima dell'operazione di ripristino o failover
+
+La tabella seguente illustra lo stato degli spazi dei nomi di origine e di destinazione di esempio prima dell'operazione di ripristino o failover:
+
+[cols="1,2a,2a"]
+|===
+| Spazio dei nomi | Annotazioni | Etichette 
+
+
+| Namespace ns-1 (origine)  a| 
+* annotation.one/key: "updatedvalue"
+* annotation.two/key: "true"
+
+ a| 
+* ambiente=produzione
+* compliance=hipaa
+* name=ns-1
+
+
+
+
+| Namespace ns-2 (destinazione)  a| 
+* annotation.one/key: "true"
+* annotazione.tre/chiave: "false"
+
+ a| 
+* role=database
+
+
+|===
+
+
+==== Dopo l'operazione di ripristino
+
+La tabella seguente illustra lo stato dello spazio dei nomi di destinazione di esempio dopo l'operazione di ripristino o failover. Alcune chiavi sono state aggiunte, alcune sono state sovrascritte e l' `name`etichetta è stata aggiornata per corrispondere allo spazio dei nomi di destinazione:
+
+[cols="1,2a,2a"]
+|===
+| Spazio dei nomi | Annotazioni | Etichette 
+
+
+| Namespace ns-2 (destinazione)  a| 
+* annotation.one/key: "updatedvalue"
+* annotation.two/key: "true"
+* annotazione.tre/chiave: "false"
+
+ a| 
+* name=ns-2
+* compliance=hipaa
+* ambiente=produzione
+* role=database
+
+
+|===

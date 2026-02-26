@@ -1,0 +1,130 @@
+---
+sidebar: sidebar 
+permalink: trident-use/vol-custom-name.html 
+keywords: volumes, volume name, custom volume name, on-demand volume snapshots, expand volumes, iscsci volumes, nfs volumes, expand, expansion, 
+summary: 'Trident supporta l"assegnazione di nomi ed etichette significativi ai volumi creati, in modo da facilitare l"identificazione, il monitoraggio, la gestione e la facile mappatura dei volumi alle rispettive risorse Kubernetes (PVCs).' 
+---
+= Personalizza i nomi e le etichette dei volumi
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+Con Trident, puoi assegnare nomi ed etichette significativi ai volumi che crei. Questo ti aiuta a identificare e mappare facilmente i volumi alle rispettive risorse Kubernetes (PVC). Puoi anche definire modelli a livello di backend per creare nomi di volumi personalizzati ed etichette personalizzate; tutti i volumi che crei, importi o cloni aderiranno ai modelli.
+
+
+
+== Prima di iniziare
+
+Supporto per nomi ed etichette di volume personalizzabili:
+
+* Operazioni di creazione, importazione e clonazione di volume.
+* Nel caso del  `ontap-nas-economy` driver, solo il nome del volume Qtree è conforme al modello di nome.
+* Nel caso del `ontap-san-economy` driver, solo il nome LUN è conforme al modello di nome.
+
+
+
+
+== Limitazioni
+
+* I nomi dei volumi personalizzati sono compatibili solo con i driver ONTAP on-premises.
+* Le etichette personalizzate sono supportate solo per i `ontap-san`, `ontap-nas` e `ontap-nas-flexgroup` driver.
+* I nomi dei volumi personalizzati non si applicano ai volumi esistenti.
+
+
+
+
+== Comportamenti chiave dei nomi di volume personalizzabili
+
+* Se si verifica un errore a causa di una sintassi non valida in un modello di nome, la creazione del backend fallisce. Tuttavia, se l'applicazione del modello fallisce, il volume verrà nominato secondo la convenzione di naming esistente.
+* Il prefisso di archiviazione non è applicabile quando un volume viene nominato utilizzando un name template dalla configurazione del backend. Qualsiasi valore di prefisso desiderato può essere aggiunto direttamente al template.
+
+
+
+
+== Esempi di configurazione del backend con name template ed etichette
+
+I modelli di nome personalizzati possono essere definiti a livello di root e/o pool.
+
+.Esempio di livello radice
+[source, json]
+----
+{
+  "version": 1,
+  "storageDriverName": "ontap-nas",
+  "backendName": "ontap-nfs-backend",
+  "managementLIF": "<ip address>",
+  "svm": "svm0",
+  "username": "<admin>",
+  "password": "<password>",
+  "defaults": {
+    "nameTemplate": "{{.volume.Name}}_{{.labels.cluster}}_{{.volume.Namespace}}_{{.volume.RequestName}}"
+  },
+  "labels": {
+    "cluster": "ClusterA",
+    "PVC": "{{.volume.Namespace}}_{{.volume.RequestName}}"
+  }
+}
+----
+.Esempio a livello di pool
+[source, json]
+----
+{
+  "version": 1,
+  "storageDriverName": "ontap-nas",
+  "backendName": "ontap-nfs-backend",
+  "managementLIF": "<ip address>",
+  "svm": "svm0",
+  "username": "<admin>",
+  "password": "<password>",
+  "useREST": true,
+  "storage": [
+    {
+      "labels": {
+        "labelname": "label1",
+        "name": "{{ .volume.Name }}"
+      },
+      "defaults": {
+        "nameTemplate": "pool01_{{ .volume.Name }}_{{ .labels.cluster }}_{{ .volume.Namespace }}_{{ .volume.RequestName }}"
+      }
+    },
+    {
+      "labels": {
+        "cluster": "label2",
+        "name": "{{ .volume.Name }}"
+      },
+      "defaults": {
+        "nameTemplate": "pool02_{{ .volume.Name }}_{{ .labels.cluster }}_{{ .volume.Namespace }}_{{ .volume.RequestName }}"
+      }
+    }
+  ]
+}
+----
+
+
+== Esempi di template di nome
+
+*Esempio 1*:
+
+[listing]
+----
+"nameTemplate": "{{ .config.StoragePrefix }}_{{ .volume.Name }}_{{ .config.BackendName }}"
+----
+*Esempio 2*:
+
+[listing]
+----
+"nameTemplate": "pool_{{ .config.StoragePrefix }}_{{ .volume.Name }}_{{ slice .volume.RequestName 1 5 }}""
+----
+
+
+== Punti da considerare
+
+. Nel caso di importazione di volumi, le etichette vengono aggiornate solo se il volume esistente ha etichette in un formato specifico. Ad esempio: `{"provisioning":{"Cluster":"ClusterA", "PVC": "pvcname"}}`.
+. Nel caso di importazioni di volumi gestiti, il nome del volume segue il modello di nome definito a livello di root nella definizione del backend.
+. Trident non supporta l'uso di un operatore slice con il prefisso dello storage.
+. Se i modelli non producono nomi di volume univoci, Trident aggiungerà alcuni caratteri casuali per creare nomi di volume univoci.
+. Se il nome personalizzato per un volume NAS economy supera i 64 caratteri, Trident nominerà i volumi in base alla convenzione di naming esistente. Per tutti gli altri driver ONTAP, se il nome del volume supera il limite di nome, il processo di creazione del volume non riesce.
+

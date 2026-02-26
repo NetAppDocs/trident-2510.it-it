@@ -1,0 +1,166 @@
+---
+sidebar: sidebar 
+permalink: trident-use/vol-provision.html 
+keywords: volumes, pvc, pv, persistentvolume, persistentvolumeclaim, mount, pod, provision 
+summary: 'Crea un PersistentVolume (PV) e un PersistentVolumeClaim (PVC) che utilizza il StorageClass Kubernetes configurato per richiedere l"accesso al PV. Puoi quindi montare il PV su un pod.' 
+---
+= Effettua il provisioning di un volume
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+Crea un PersistentVolumeClaim (PVC) che utilizza il StorageClass Kubernetes configurato per richiedere l'accesso al PV. Puoi quindi montare il PV su un pod.
+
+
+
+== Panoramica
+
+Un https://kubernetes.io/docs/concepts/storage/persistent-volumes["_PersistentVolumeClaim_"^] (PVC) è una richiesta di accesso al PersistentVolume sul cluster.
+
+Il PVC può essere configurato per richiedere storage di una certa dimensione o modalità di accesso. Utilizzando il StorageClass associato, l'amministratore del cluster può controllare più della sola dimensione e modalità di accesso della PersistentVolume, come ad esempio le prestazioni o il livello di servizio.
+
+Dopo aver creato il PVC puoi montare il volume in un pod.
+
+
+
+== Crea il PVC
+
+.Passaggi
+. Crea il PVC.
++
+[listing]
+----
+kubectl create -f pvc.yaml
+----
+. Verificare lo stato del PVC.
++
+[listing]
+----
+kubectl get pvc
+----
+
+
+[listing]
+----
+NAME        STATUS  VOLUME     CAPACITY   ACCESS MODES  STORAGECLASS AGE
+pvc-storage Bound   pv-name    1Gi        RWO                  5m
+----
+. Monta il volume in un pod.
++
+[listing]
+----
+kubectl create -f pv-pod.yaml
+----
++
+
+NOTE: Puoi monitorare l'avanzamento usando `kubectl get pod --watch`.
+
+. Verificare che il volume sia montato su `/my/mount/path`.
++
+[listing]
+----
+kubectl exec -it task-pv-pod -- df -h /my/mount/path
+----
+. Ora puoi eliminare il Pod. L'applicazione Pod non esisterà più, ma il volume rimarrà.
++
+[listing]
+----
+kubectl delete pod pv-pod
+----
+
+
+
+
+=== Esempi di manifest
+
+.PersistentVolumeClaim manifesti di esempio
+[%collapsible]
+====
+Questi esempi mostrano le opzioni di configurazione di base del PVC.
+
+.PVC con accesso RWO
+Questo esempio mostra un PVC di base con accesso RWO associato a un StorageClass denominato  `basic-csi`.
+
+[source, yaml]
+----
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: pvc-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: basic-csi
+----
+.PVC con NVMe/TCP
+Questo esempio mostra un PVC di base per NVMe/TCP con accesso RWO associato a un StorageClass denominato `protection-gold`.
+
+[source, yaml]
+----
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+name: pvc-san-nvme
+spec:
+accessModes:
+  - ReadWriteOnce
+resources:
+  requests:
+    storage: 300Mi
+storageClassName: protection-gold
+----
+====
+.Esempi di manifest di pod
+[%collapsible]
+====
+Questi esempi mostrano configurazioni di base per collegare il PVC a un pod.
+
+.Configurazione di base
+[source, yaml]
+----
+kind: Pod
+apiVersion: v1
+metadata:
+  name: pv-pod
+spec:
+  volumes:
+    - name: storage
+      persistentVolumeClaim:
+       claimName: pvc-storage
+  containers:
+    - name: pv-container
+      image: nginx
+      ports:
+        - containerPort: 80
+          name: "http-server"
+      volumeMounts:
+        - mountPath: "/my/mount/path"
+          name: storage
+----
+.Configurazione di base NVMe/TCP
+[source, yaml]
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-nginx
+spec:
+  volumes:
+    - name: basic-pvc
+      persistentVolumeClaim:
+        claimName: pvc-san-nvme
+  containers:
+    - name: task-pv-container
+      image: nginx
+      volumeMounts:
+        - mountPath: "/my/mount/path"
+          name: basic-pvc
+----
+====
+Fate riferimento a link:../trident-reference/objects.html["Oggetti Kubernetes e Trident"] per i dettagli su come le classi di storage interagiscono con `PersistentVolumeClaim` e sui parametri per controllare come Trident effettua il provisioning dei volumi.

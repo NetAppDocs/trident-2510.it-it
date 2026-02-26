@@ -1,0 +1,71 @@
+---
+sidebar: sidebar 
+permalink: trident-use/trident-fsx-deploy-sample.html 
+keywords: map backends, storage classes, trident backend, ontap-nas, ontap-nas-economy, ontap-nas-flexgroups, options, storageclasses, fsx 
+summary: Scopri le opzioni di configurazione del backend per Amazon FSx for ONTAP. Questa sezione fornisce esempi di configurazione del backend. 
+---
+= Distribuisci l'applicazione di esempio
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+Una volta creati la classe di storage e il PVC, è possibile montare il PV su un pod. Questa sezione elenca il comando di esempio e la configurazione per collegare il PV a un pod.
+
+.Passaggi
+. Monta il volume in un pod.
++
+[source, console]
+----
+kubectl create -f pv-pod.yaml
+----
++
+Questi esempi mostrano configurazioni di base per collegare il PVC a un pod: *Configurazione di base*:
+
++
+[source, yaml]
+----
+kind: Pod
+apiVersion: v1
+metadata:
+  name: pv-pod
+spec:
+  volumes:
+    - name: pv-storage
+      persistentVolumeClaim:
+       claimName: basic
+  containers:
+    - name: pv-container
+      image: nginx
+      ports:
+        - containerPort: 80
+          name: "http-server"
+      volumeMounts:
+        - mountPath: "/my/mount/path"
+          name: pv-storage
+----
++
+
+NOTE: Puoi monitorare l'avanzamento usando `kubectl get pod --watch`.
+
+. Verificare che il volume sia montato su `/my/mount/path`.
++
+[source, console]
+----
+kubectl exec -it pv-pod -- df -h /my/mount/path
+----
+
+
+[listing]
+----
+Filesystem                                                        Size  Used  Avail Use%  Mounted on
+192.168.188.78:/trident_pvc_ae45ed05_3ace_4e7c_9080_d2a83ae03d06  1.1G  320K  1.0G   1%   /my/mount/path
+----
+Ora puoi eliminare il Pod. L'applicazione Pod non esisterà più, ma il volume rimarrà.
+
+[source, console]
+----
+kubectl delete pod pv-pod
+----

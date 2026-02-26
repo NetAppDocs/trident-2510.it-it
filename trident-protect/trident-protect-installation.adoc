@@ -1,0 +1,151 @@
+---
+sidebar: sidebar 
+permalink: trident-protect/trident-protect-installation.html 
+keywords: install, trident, protect, requirements, registry 
+summary: 'Se l"ambiente soddisfa i requisiti, puoi seguire questi passaggi per installare Trident Protect.' 
+---
+= Installa e configura Trident Protect
+:hardbreaks:
+:allow-uri-read: 
+:nofooter: 
+:icons: font
+:linkattrs: 
+:imagesdir: ../media/
+
+
+[role="lead"]
+Se l'ambiente soddisfa i requisiti per Trident Protect, è possibile seguire questi passaggi per installare Trident Protect sul cluster. È possibile ottenere Trident Protect da NetApp, oppure installarlo dal proprio registro privato. L'installazione da un registro privato è utile se il cluster non può accedere a Internet.
+
+
+
+== Installa Trident Protect
+
+[role="tabbed-block"]
+====
+.Installa Trident Protect da NetApp
+--
+.Passaggi
+. Aggiungi il repository Trident Helm:
++
+[source, console]
+----
+helm repo add netapp-trident-protect https://netapp.github.io/trident-protect-helm-chart
+----
+. Utilizza Helm per installare Trident Protect. Sostituisci  `<name-of-cluster>` con un nome di cluster, che verrà assegnato al cluster e utilizzato per identificare i backup e gli snapshot del cluster:
++
+[source, console]
+----
+helm install trident-protect netapp-trident-protect/trident-protect --set clusterName=<name-of-cluster> --version 100.2510.0 --create-namespace --namespace trident-protect
+----
+. Facoltativamente, per abilitare la registrazione del debug (consigliata per la risoluzione dei problemi), utilizzare:
++
+[source, console]
+----
+helm install trident-protect netapp-trident-protect/trident-protect --set clusterName=<name-of-cluster> --set logLevel=debug --version 100.2510.0 --create-namespace --namespace trident-protect
+----
++
+La registrazione del debug aiuta il supporto NetApp a risolvere i problemi senza richiedere modifiche al livello di registro o la riproduzione del problema.
+
+
+
+--
+.Installa Trident Protect da un registro privato
+--
+Puoi installare Trident Protect da un registro immagini privato se il tuo cluster Kubernetes non è in grado di accedere a Internet. In questi esempi, sostituisci i valori tra parentesi con le informazioni del tuo ambiente:
+
+.Passaggi
+. Scarica le seguenti immagini sulla tua macchina locale, aggiorna i tag e poi caricale nel tuo registro privato:
++
+[source, console]
+----
+docker.io/netapp/controller:25.10.0
+docker.io/netapp/restic:25.10.0
+docker.io/netapp/kopia:25.10.0
+docker.io/netapp/kopiablockrestore:25.10.0
+docker.io/netapp/trident-autosupport:25.10.0
+docker.io/netapp/exechook:25.10.0
+docker.io/netapp/resourcebackup:25.10.0
+docker.io/netapp/resourcerestore:25.10.0
+docker.io/netapp/resourcedelete:25.10.0
+docker.io/netapp/trident-protect-utils:v1.0.0
+----
++
+Ad esempio:
+
++
+[source, console]
+----
+docker pull docker.io/netapp/controller:25.10.0
+----
++
+[source, console]
+----
+docker tag docker.io/netapp/controller:25.10.0 <private-registry-url>/controller:25.10.0
+----
++
+[source, console]
+----
+docker push <private-registry-url>/controller:25.10.0
+----
++
+
+NOTE: Per ottenere il grafico Helm, scarica innanzitutto il grafico Helm su una macchina con accesso a Internet utilizzando `helm pull trident-protect --version 100.2510.0 --repo https://netapp.github.io/trident-protect-helm-chart`, quindi copia il file risultante `trident-protect-100.2510.0.tgz` nel tuo ambiente offline e installalo utilizzando `helm install trident-protect ./trident-protect-100.2510.0.tgz` invece del riferimento al repository nel passaggio finale.
+
+. Crea lo spazio dei nomi di sistema Trident Protect:
++
+[source, console]
+----
+kubectl create ns trident-protect
+----
+. Accedi al registro:
++
+[source, console]
+----
+helm registry login <private-registry-url> -u <account-id> -p <api-token>
+----
+. Crea un pull secret da utilizzare per l'autenticazione del registro privato:
++
+[source, console]
+----
+kubectl create secret docker-registry regcred --docker-username=<registry-username> --docker-password=<api-token> -n trident-protect --docker-server=<private-registry-url>
+----
+. Aggiungi il repository Trident Helm:
++
+[source, console]
+----
+helm repo add netapp-trident-protect https://netapp.github.io/trident-protect-helm-chart
+----
+. Crea un file denominato  `protectValues.yaml`. Assicurati che contenga le seguenti impostazioni di Trident Protect:
++
+[source, yaml]
+----
+---
+imageRegistry: <private-registry-url>
+imagePullSecrets:
+  - name: regcred
+----
++
+
+NOTE: I  `imageRegistry` e  `imagePullSecrets` valori si applicano a tutte le immagini dei componenti, inclusi  `resourcebackup` e  `resourcerestore`. Se si inseriscono immagini in un percorso di repository specifico all'interno del registro (ad esempio,  `example.com:443/my-repo`), includere il full path nel campo del registro. Questo garantirà che tutte le immagini vengano estratte da  `<private-registry-url>/<image-name>:<tag>`.
+
+. Utilizza Helm per installare Trident Protect. Sostituisci  `<name_of_cluster>` con un nome di cluster, che verrà assegnato al cluster e utilizzato per identificare i backup e gli snapshot del cluster:
++
+[source, console]
+----
+helm install trident-protect netapp-trident-protect/trident-protect --set clusterName=<name_of_cluster> --version 100.2510.0 --create-namespace --namespace trident-protect -f protectValues.yaml
+----
+. Facoltativamente, per abilitare la registrazione del debug (consigliata per la risoluzione dei problemi), utilizzare:
++
+[source, console]
+----
+helm install trident-protect netapp-trident-protect/trident-protect --set clusterName=<name-of-cluster> --set logLevel=debug --version 100.2510.0 --create-namespace --namespace trident-protect -f protectValues.yaml
+----
++
+La registrazione del debug aiuta il supporto NetApp a risolvere i problemi senza richiedere modifiche al livello di registro o la riproduzione del problema.
+
+
+
+--
+====
+
+NOTE: Per ulteriori opzioni di configurazione del grafico Helm, incluse le impostazioni di AutoSupport e il filtraggio dello spazio dei nomi, fare riferimento a link:trident-protect-customize-installation.html#configure-additional-trident-protect-helm-chart-settings["Personalizza l'installazione di Trident Protect"].

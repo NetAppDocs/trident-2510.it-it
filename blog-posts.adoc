@@ -1,0 +1,54 @@
+---
+sidebar: sidebar 
+permalink: blog-posts.html 
+keywords: Trident blogs, Trident Protect blogs 
+summary: Puoi trovare alcuni ottimi blog NetApp Trident e Trident Protect. 
+---
+= Blog di Trident e Trident Protect
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ./media/
+
+
+[role="lead"]
+Qui potete trovare alcuni ottimi blog NetApp Trident e Trident Protect:
+
+
+
+== Blog di Trident
+
+* 16 ottobre 2025: link:https://www.netapp.com/blog/trident-25-10-advanced-kubernetes-storage-solutions/["Soluzioni di storage avanzate per Kubernetes"^]
+* 19 agosto 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Enhancing-Data-Consistency-Volume-Group-Snapshots-in-OpenShift-virtualization/ba-p/462798["Migliorare la consistenza dei dati: istantanee di gruppi di volumi nella virtualizzazione OpenShift con Trident"^]
+* 09 maggio 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Automatic-Trident-backend-configuration-for-FSx-for-ONTAP-with-the-Amazon-EKS/ba-p/460586["Configurazione automatica del backend Trident per FSx for ONTAP con il componente aggiuntivo Amazon EKS"^]
+* 15 aprile 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/NetApp-Trident-with-Google-Cloud-NetApp-Volumes-for-SMB-Protocol/ba-p/460118["NetApp Trident con Google Cloud NetApp Volumes per il protocollo SMB"^]
+* 14 aprile 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Leveraging-Fiber-Channel-Protocol-with-Trident-25-02-for-Persistent-Storage-on/ba-p/460091["Sfruttare il protocollo Fiber Channel con Trident 25.02 per lo storage persistente su Kubernetes"^]
+* 14 aprile 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Unlocking-the-power-of-NetApp-ASA-r2-systems-for-Kubernetes-block-storage/ba-p/460113["Liberare la potenza dei sistemi NetApp ASA r2 per lo storage a blocchi Kubernetes"^]
+* 31 marzo 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Simplifying-Trident-Installation-on-Red-Hat-OpenShift-with-the-New-Certified/ba-p/459710["Semplificazione dell'installazione di Trident su Red Hat OpenShift con il nuovo Certified Operator"^]
+* 27 marzo 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Provisioning-Trident-for-SMB-with-Google-Cloud-NetApp-Volumes/ba-p/459629["Provisioning Trident per SMB con Google Cloud NetApp Volumes"^]
+* 05 marzo 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Unlock-Seamless-iSCSI-Storage-Integration-A-Guide-to-FSxN-on-ROSA-Clusters-for/ba-p/459124["Sblocca l'integrazione senza problemi dello storage iSCSI: Guida a FSxN su cluster ROSA per AWS"^]
+* 27 febbraio 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Deploying-cloud-identity-with-Trident-GKE-and-Google-Cloud-NetApp-Volumes/ba-p/458912["Distribuzione dell'identità cloud con Trident, GKE e Google Cloud NetApp Volumes"^]
+* 12 dicembre 2024: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Introducing-Fibre-Channel-support-in-Trident/ba-p/457427["Introduzione del supporto Fibre Channel in Trident"^]
+* 11 novembre 2024: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/NetApp-Trident-with-Google-Cloud-NetApp-Volumes/ba-p/456484["NetApp Trident con Google Cloud NetApp Volumes"^]
+* 29 ottobre 2024: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Amazon-FSx-for-NetApp-ONTAP-with-Red-Hat-OpenShift-Service-on-AWS-ROSA-using/ba-p/456167["Amazon FSx for NetApp ONTAP con Red Hat OpenShift Service on AWS (ROSA) utilizzando Trident"^]
+* 29 ottobre 2024: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Live-Migration-of-VMs-with-OpenShift-Virtualization-on-ROSA-and-Amazon-FSx-for/ba-p/456213["Migrazione live di VM con OpenShift Virtualization su ROSA e Amazon FSx per NetApp ONTAP"^]
+* 08 luglio 2024: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Using-NVMe-TCP-to-consume-ONTAP-storage-for-your-modern-containerized-apps-on/ba-p/453706["Utilizzo di NVMe/TCP per consumare lo storage ONTAP per le tue moderne applicazioni containerizzate su Amazon EKS"^]
+* 01 luglio 2024: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Seamless-Kubernetes-storage-with-Google-Cloud-NetApp-Volumes-Flex-and-Astra/ba-p/453408["Storage Kubernetes senza soluzione di continuità con Google Cloud NetApp Volumes Flex e Astra Trident"^]
+* 11 giugno 2024: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/ONTAP-as-backend-storage-for-the-integrated-image-registry-in-OpenShift/ba-p/453142["ONTAP come storage di backend per il registro delle immagini integrato in OpenShift"^]
+
+
+
+
+== Blog di Trident Protect
+
+* 16 maggio 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Automating-registry-failover-for-disaster-recovery-with-Trident-protect-post/ba-p/460777["Automatizzazione del failover del registro per il disaster recovery con i post-restore hook di Trident Protect"^]
+* 16 maggio 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/OpenShift-Virtualization-Disaster-Recovery-with-NetApp-Trident-Protect/ba-p/460716["Disaster recovery della OpenShift Virtualization con NetApp Trident Protect"^]
+* 13 maggio 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Storage-class-migration-with-Trident-protect-backup-amp-restore/ba-p/460637["Migrazione della storage class con Trident Protect backup  restore"^]
+* 09 maggio 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Rescale-Kubernetes-applications-with-Trident-protect-post-restore-hooks/ba-p/460514["Ridimensiona le applicazioni Kubernetes con i hook post-ripristino di Trident Protect"^]
+* 03 aprile 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Trident-Protect-Power-Up-Kubernetes-Replication-for-Protection-amp-Disaster/ba-p/459777["Trident Protect Power Up: Replica Kubernetes per la protezione e il disaster recovery"^]
+* 13 marzo 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Crash-Consistent-Backup-and-Restore-Operations-for-OpenShift-Virtualization-VMs/ba-p/459417["Operazioni di backup e ripristino coerenti con gli arresti anomali per le VM di OpenShift Virtualization"^]
+* 11 marzo 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Extending-GitOps-patterns-to-application-data-protection-with-NetApp-Trident/ba-p/459323["Estensione dei modelli GitOps alla protezione dei dati delle applicazioni con NetApp Trident"^]
+* 03 marzo 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Trident-25-02-Elevating-the-Red-Hat-OpenShift-Experience-with-Exciting-New/ba-p/459055["Trident 25.02: Elevare l'esperienza Red Hat OpenShift con nuove entusiasmanti funzionalità"^]
+* 15 gennaio 2025: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Introducing-Trident-protect-role-based-access-control/ba-p/457837["Presentazione del controllo degli accessi in base al ruolo di Trident Protect"^]
+* 11 novembre 2024: link:https://community.netapp.com/t5/Tech-ONTAP-Blogs/Kubernetes-driven-data-management-The-new-era-with-Trident-protect/ba-p/456395["Gestione dei dati basata su Kubernetes: la nuova era con Trident Protect"^]
+

@@ -1,0 +1,273 @@
+---
+sidebar: sidebar 
+permalink: trident-reco/force-detach.html 
+keywords: force detach, automated failover, node health check, tridentnoderemediation, tridentnoderemediationtemplate, TNR, TNR template, NHC, node health check operator 
+summary: Utilizzare le informazioni elencate qui per automatizzare il failover delle applicazioni stateful con Trident. 
+---
+= Automatizzare il failover delle applicazioni stateful con Trident
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+La funzionalità di force-detach di Trident consente di staccare automaticamente i volumi dai nodi non integri in un cluster Kubernetes, prevenendo la corruzione dei dati e garantendo la disponibilità delle applicazioni. Questa funzionalità è particolarmente utile negli scenari in cui i nodi diventano non responsivi o vengono messi offline per manutenzione.
+
+
+
+== Dettagli sul force detach
+
+La disconnessione forzata è disponibile per  `ontap-san`, `ontap-san-economy`, `ontap-nas` e  `ontap-nas-economy` solo. Prima di abilitare la disconnessione forzata, è necessario abilitare l'arresto non regolare dei nodi (NGNS) sul cluster Kubernetes. NGNS è abilitato per impostazione predefinita per Kubernetes 1.28 e versioni successive. Per ulteriori informazioni, fare riferimento a link:https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/#non-graceful-node-shutdown["Kubernetes: arresto non corretto del nodo"^].
+
+
+NOTE: Quando si utilizza il  `ontap-nas` o  `ontap-nas-economy` driver, è necessario impostare il parametro  `autoExportPolicy` nella configurazione del backend su  `true` in modo che Trident possa limitare l'accesso dal nodo Kubernetes con il taint applicato utilizzando policy di esportazione gestite.
+
+
+WARNING: Poiché Trident si basa su Kubernetes NGNS, non rimuovere `out-of-service` le taint da un nodo non integro finché tutti i carichi di lavoro non tollerabili non vengono riprogrammati. L'applicazione o la rimozione sconsiderata delle taint può compromettere la protezione dei dati backend.
+
+Quando l'amministratore del cluster Kubernetes ha applicato la `node.kubernetes.io/out-of-service=nodeshutdown:NoExecute` taint al nodo e `enableForceDetach` è impostato su `true`, Trident determinerà lo stato del nodo e:
+
+. Interrompi l'accesso I/O backend per i volumi montati su quel nodo.
+. Contrassegna l'oggetto nodo Trident come  `dirty` (non sicuro per nuove pubblicazioni).
++
+
+NOTE: Il controller Trident rifiuterà le nuove richieste di pubblicazione di volumi finché il nodo non verrà riqualificato (dopo essere stato contrassegnato come  `dirty`) dal pod Trident del nodo. Qualsiasi carico di lavoro pianificato con un PVC montato (anche dopo che il nodo del cluster è integro e pronto) non verrà accettato finché Trident non potrà verificare il nodo `clean` (sicuro per nuove pubblicazioni).
+
+
+
+Quando la salute del nodo viene ripristinata e la contaminazione viene rimossa, Trident:
+
+. Identificare e pulire i percorsi pubblicati obsoleti sul nodo.
+. Se il nodo si trova in uno stato  `cleanable` (la contaminazione fuori servizio è stata rimossa e il nodo è in stato  `Ready`) e tutti i percorsi pubblicati obsoleti sono puliti, Trident riammetterà il nodo come  `clean` e consentirà nuovi volumi pubblicati sul nodo.
+
+
+
+
+== Dettagli sul failover automatico
+
+È possibile automatizzare il processo di distacco forzato tramite integrazione con link:https://github.com/medik8s/node-healthcheck-operator["operatore node health check (NHC)"^]. Quando si verifica un errore di nodo, NHC attiva la Trident node remediation (TNR) e forza il distacco automaticamente creando una TridentNodeRemediation CR nello spazio dei nomi di Trident che definisce il nodo in errore. La TNR viene creata solo in caso di errore del nodo e rimossa da NHC una volta che il nodo torna online o viene eliminato.
+
+
+
+=== Processo di rimozione del pod del nodo non riuscito
+
+Il failover automatico seleziona i carichi di lavoro da rimuovere dal nodo in errore. Quando viene creato un TNR, il controller TNR contrassegna il nodo come dirty, impedendo qualsiasi nuova pubblicazione di volumi e inizia a rimuovere i pod supportati dal force-detach e i relativi allegati ai volumi.
+
+Tutti i volumi/PVC supportati da force-detach sono supportati da automated-failover:
+
+* Volumi NAS e NAS-economy che utilizzano policy di auto-export (SMB non è ancora supportato).
+* SAN e volumi SAN-economy.
+
+
+Fare riferimento a <<Dettagli sul force detach>>.
+
+*Comportamento predefinito*:
+
+* I pod che utilizzano volumi supportati dal force-detach vengono rimossi dal nodo in errore. Kubernetes ripianificherà questi pod su un nodo funzionante.
+* I pod che utilizzano un volume non supportato da force-detach, inclusi i volumi non Trident, non vengono rimossi dal nodo in errore.
+* I pod senza stato (non PVC) non vengono rimossi dal nodo non riuscito, a meno che l'annotazione del pod `trident.netapp.io/podRemediationPolicy: delete` sia impostata.
+
+
+*Sostituzione del comportamento di rimozione del pod*:
+
+Il comportamento di rimozione del pod può essere personalizzato utilizzando un'annotazione del pod: `trident.netapp.io/podRemediationPolicy[retain, delete]`. Queste annotazioni vengono esaminate e utilizzate quando si verifica un failover. Applica le annotazioni alla specifica del pod di deployment/replicaset di Kubernetes per evitare che l'annotazione scompaia dopo un failover:
+
+* `retain` - Il pod NON verrà rimosso dal nodo in errore durante un failover automatico.
+* `delete` - Il pod verrà rimosso dal nodo in errore durante un failover automatico.
+
+
+Queste annotazioni possono essere applicate a qualsiasi pod.
+
+[WARNING]
+====
+* Le operazioni di I/O verranno bloccate solo sui nodi guasti per i volumi che supportano force-detach.
+* Per i volumi che non supportano il force-detach, esiste il rischio di corruzione dei dati e problemi di multi-attach.
+
+
+====
+
+
+=== CR TridentNodeRemediation
+
+Il CR TridentNodeRemediation (TNR) definisce un nodo guasto. Il nome del TNR è il nome del nodo guasto.
+
+*Esempio TNR*:
+
+[source, yaml]
+----
+apiVersion: trident.netapp.io/v1
+kind: TridentNodeRemediation
+metadata:
+  name: <K8s-node-name>
+spec: {}
+----
+*TNR states*: utilizzare i seguenti comandi per visualizzare lo stato dei TNR:
+`kubectl get tnr <name> -n <trident-namespace>`
+
+I TNR possono trovarsi in uno dei seguenti stati:
+
+* _Rimediando_:
++
+** Interrompi l'accesso I/O backend per i volumi supportati da force-detach montati su quel nodo.
+** L'oggetto nodo Trident è contrassegnato come sporco (non sicuro per nuove pubblicazioni).
+** Rimuovi i pod e gli allegati di volume dal nodo
+
+
+* _NodeRecoveryPending_:
++
+** Il controller attende che il nodo torni online.
+** Una volta che il nodo è online, publish-enforcement garantirà che il nodo sia pulito e pronto per nuove pubblicazioni di volumi.
+
+
+* Se il nodo viene eliminato da K8s, il controller TNR rimuoverà il TNR e cesserà la riconciliazione.
+* _Riuscito_:
++
+** Tutti i passaggi di remediation e ripristino del nodo sono stati completati con successo. Il nodo è pulito e pronto per nuove pubblicazioni di volumi.
+
+
+* _Non riuscito_:
++
+** Errore irreversibile. I motivi dell'errore sono impostati nel campo status.message della CR.
+
+
+
+
+
+
+=== Abilitazione del failover automatico
+
+*Prerequisiti*:
+
+* Assicurarsi che la disconnessione forzata sia abilitata prima di abilitare il failover automatico. Per ulteriori informazioni, fare riferimento a <<Dettagli sul force detach>>.
+* Installare il controllo dello stato del nodo (NHC) nel cluster Kubernetes.
++
+** link:https://sdk.operatorframework.io/docs/installation/["Installa operator-sdk"].
+** Installare Operator Lifecycle Manager (OLM) nel cluster se non è già installato: `operator-sdk olm install`.
+** Installa l'operatore Node Health check: `kubectl create -f https://operatorhub.io/install/node-healthcheck-operator.yaml`.
+
+
+
+
+
+NOTE: È anche possibile utilizzare metodi alternativi per rilevare gli errori dei nodi, come specificato nella sezione <<Integrating Custom Node Health Check Solutions>> qui sotto.
+
+Vedi link:https://www.redhat.com/en/blog/node-health-check-operator["Operatore Node Health Check"^] per ulteriori informazioni.
+
+.Passaggi
+. Crea una CR NodeHealthCheck (NHC) nel namespace Trident per monitorare i nodi worker nel cluster. Esempio:
++
+[source, yaml]
+----
+apiVersion: remediation.medik8s.io/v1alpha1
+kind: NodeHealthCheck
+metadata:
+  name: <CR name>
+spec:
+  selector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: DoesNotExist
+      - key: node-role.kubernetes.io/master
+        operator: DoesNotExist
+  remediationTemplate:
+    apiVersion: trident.netapp.io/v1
+    kind: TridentNodeRemediationTemplate
+    namespace: <Trident installation namespace>
+    name: trident-node-remediation-template
+  minHealthy: 0 # Trigger force-detach upon one or more node failures
+  unhealthyConditions:
+    - type: Ready
+      status: "False"
+      duration: 0s
+    - type: Ready
+      status: Unknown
+      duration: 0s
+----
+. Applica il controllo di integrità del nodo CR nel namespace  `trident`.
++
+`kubectl apply -f <nhc-cr-file>.yaml -n <trident-namespace>`
+
+
+
+Il CR sopra indicato è configurato per monitorare i nodi worker di K8s per le condizioni Ready: false e Unknown. Il failover automatico verrà attivato quando un nodo passa allo stato Ready: false o Ready: Unknown.
+
+Il `unhealthyConditions` nella CR utilizza un grace period di 0 secondi. Ciò fa sì che il failover automatico venga attivato immediatamente quando K8s imposta la condizione del nodo Ready: false, che viene impostata dopo che K8s perde l'heartbeat da un nodo. K8s ha un valore predefinito di 40 secondi di attesa dopo l'ultimo heartbeat prima di impostare Ready: false. Questo grace period può essere personalizzato nelle opzioni di deployment di K8s.
+
+Per ulteriori opzioni di configurazione, fare riferimento a link:https://github.com/medik8s/node-healthcheck-operator/blob/main/docs/configuration.md["Documentazione di Node-Healthcheck-Operator"^].
+
+
+
+=== Informazioni aggiuntive sulla configurazione
+
+Quando Trident viene installato con force-detach abilitato, vengono create automaticamente due risorse aggiuntive nello spazio dei nomi Trident per facilitare l'integrazione con NHC: TridentNodeRemediationTemplate (TNRT) e ClusterRole.
+
+*TridentNodeRemediationTemplate (TNRT)*:
+
+Il TNRT funge da modello per il controller NHC, che utilizza TNRT per generare risorse TNR secondo necessità.
+
+[source, yaml]
+----
+apiVersion: trident.netapp.io/v1
+kind: TridentNodeRemediationTemplate
+metadata:
+  name: trident-node-remediation-template
+  namespace: trident
+spec:
+  template:
+    spec: {}
+----
+*ClusterRole*:
+
+Un ruolo cluster viene anche aggiunto durante l'installazione quando il force-detach è abilitato. Questo dà a NHC i permessi sui TNR nel namespace Trident.
+
+[source, yaml]
+----
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.ext-remediation/aggregate-to-ext-remediation: "true"
+  name: tridentnoderemediation-access
+rules:
+- apiGroups:
+  - trident.netapp.io
+  resources:
+  - tridentnoderemediationtemplates
+  - tridentnoderemediations
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+----
+
+
+=== Aggiornamenti e manutenzione del cluster K8s
+
+Per evitare eventuali failover, sospendere il failover automatico durante la manutenzione o gli aggiornamenti di K8s, quando è previsto che i nodi si fermino o si riavviino. È possibile sospendere il CR NHC (descritto sopra) applicando una patch al relativo CR:
+
+`kubectl patch NodeHealthCheck <cr-name> --patch '{"spec":{"pauseRequests":["<description-for-reason-of-pause>"]}}' --type=merge`
+
+Questa operazione sospende il failover automatico. Per riattivare il failover automatico, rimuovere pauseRequests dalle specifiche dopo il completamento della manutenzione.
+
+
+
+=== Limitazioni
+
+* Le operazioni di I/O vengono impedite solo sui nodi non riusciti per i volumi supportati da force-detach. Solo i pod che utilizzano volumi/PVC supportati da force-detach vengono rimossi automaticamente.
+* Automatic-failover e force-detach vengono eseguiti all'interno del pod trident-controller. Se il nodo che ospita trident-controller si guasta, l'automatic-failover sarà ritardato finché K8s non sposterà il pod su un nodo funzionante.
+
+
+
+
+=== Integrazione di soluzioni personalizzate per il controllo dello stato dei nodi
+
+È possibile sostituire Node Healthcheck Operator con strumenti alternativi di rilevamento dei guasti dei nodi per attivare il failover automatico. Per garantire la compatibilità con il meccanismo di failover automatizzato, la soluzione personalizzata dovrebbe:
+
+* Crea un TNR quando viene rilevato un errore del nodo, utilizzando il nome del nodo non funzionante come nome CR del TNR.
+* Eliminare il TNR quando il nodo è stato ripristinato e il TNR è nello stato Succeeded.
+
