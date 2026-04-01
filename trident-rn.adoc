@@ -888,7 +888,7 @@ L'utilizzo di una configurazione non multipath o l'utilizzo di  `find_multipaths
 
 == Modifiche in 22.04
 
-NetApp migliora e potenzia costantemente i suoi prodotti e servizi. Ecco alcune delle ultime funzionalità di Trident. Per le versioni precedenti, fare riferimento a https://docs.netapp.com/us-en/trident/earlier-versions.html["Versioni precedenti della documentazione"].
+NetApp migliora e perfeziona continuamente i suoi prodotti e servizi. Ecco alcune delle ultime funzionalità di Trident. Per le versioni precedenti, fare riferimento alle versioni precedenti della documentazione.
 
 
 IMPORTANT: Se si esegue l'aggiornamento da una qualsiasi versione precedente di Trident e si utilizza Azure NetApp Files, il parametro ``location`` config è ora un campo singleton obbligatorio.

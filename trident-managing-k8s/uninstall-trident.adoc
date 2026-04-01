@@ -15,7 +15,7 @@ summary: Dovresti utilizzare lo stesso metodo per disinstallare Trident che hai 
 Dovresti usare lo stesso metodo per disinstallare Trident che hai usato per installare Trident.
 
 .Informazioni su questa attività
-* Se hai bisogno di una correzione per bug riscontrati dopo un aggiornamento, problemi di dipendenza o un aggiornamento non riuscito o incompleto, dovresti disinstallare Trident e reinstallare la versione precedente utilizzando le istruzioni specifiche per quella link:../earlier-versions.html["versione"]. Questo è l'unico metodo consigliato per effettuare il _downgrade_ a una versione precedente.
+* Se hai bisogno di una correzione per bug riscontrati dopo un aggiornamento, problemi di dipendenza o un aggiornamento non riuscito o incompleto, dovresti disinstallare Trident e reinstallare la versione precedente seguendo le istruzioni specifiche per quella versione. Questo è l'unico metodo consigliato per effettuare il _downgrade_ a una versione precedente.
 * Per facilitare l'aggiornamento e la reinstallazione, la disinstallazione di Trident non rimuove i CRD o gli oggetti correlati creati da Trident. Se è necessario rimuovere completamente Trident e tutti i suoi dati, fare riferimento a link:../troubleshooting.html#completely-remove-trident-and-crds["Rimuovere completamente Trident e CRDs"].
 
 

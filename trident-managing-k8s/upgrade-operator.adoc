@@ -21,7 +21,7 @@ Puoi aggiornare Trident utilizzando l'operatore Trident manualmente o tramite He
 È possibile effettuare l'aggiornamento da un'installazione dell'operatore Trident con ambito cluster a un'altra installazione dell'operatore Trident con ambito cluster. Tutte le versioni di Trident utilizzano un operatore con ambito cluster.
 
 
-NOTE: Per eseguire l'aggiornamento da Trident installato utilizzando l'operatore con ambito namespace (versioni 20.07 fino a 20.10), utilizzare le istruzioni di aggiornamento per link:../earlier-versions.html["la tua versione installata"] di Trident.
+NOTE: Per eseguire l'aggiornamento da Trident installato utilizzando l'operatore namespace-scoped (versioni 20.07 fino a 20.10), utilizzare le istruzioni di aggiornamento per la versione di Trident installata.
 
 .Informazioni su questa attività
 Trident fornisce un file bundle che puoi utilizzare per installare l'operatore e creare oggetti associati per la tua versione di Kubernetes.
